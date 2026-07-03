@@ -22,8 +22,9 @@ El workflow **Flutter Tag Build** compila Windows (.exe/.msi), macOS (.dmg x64 y
 arm64) y Linux (.deb/.rpm/AppImage/Flatpak) y publica todo en el Release del tag.
 Alternativa manual: Actions → *Flutter Nightly Build* → Run workflow.
 
-Requisito único del repo: **Settings → Actions → General → Workflow permissions →
-"Read and write permissions"** (para que el CI pueda crear el Release).
+Los workflows de build declaran `permissions: contents: write` explícitamente,
+así que funcionan aunque el default de la organización sea solo-lectura (no hace
+falta tocar Settings → Actions).
 
 Los jobs de Android/iOS/web pueden fallar sin claves de firma; no afectan a los
 instaladores de escritorio. Los binarios van sin firma de código: Windows

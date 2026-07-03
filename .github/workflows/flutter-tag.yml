@@ -11,6 +11,10 @@ on:
 
 jobs:
   run-flutter-tag-build:
+    # Fontis: permiso explícito para crear el Release aunque el default
+    # de la organización sea solo-lectura.
+    permissions:
+      contents: write
     uses: ./.github/workflows/flutter-build.yml
     secrets: inherit
     with:
