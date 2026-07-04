@@ -152,6 +152,18 @@ def patch_app_name(env: dict) -> None:
               f"Nombre visible Linux ({desktop.name})", count=0, flags=re.MULTILINE)
 
 
+def patch_readme_header(env: dict) -> None:
+    """Cabecera del README del fork: logo Fontis en lugar del de RustDesk."""
+    app_name = env["APP_NAME"]
+    logo_name = env.get("LOGO_FILE", "logo_fontis_primary.png")
+    patch(
+        SRC / "README.md",
+        r'<img src="[^"]*" alt="(?:RustDesk - Your remote desktop|' + re.escape(app_name) + r')">',
+        f'<img src="branding/icons/{logo_name}" alt="{app_name}">',
+        "README del fork: logo de cabecera",
+    )
+
+
 def patch_windows_packaging(env: dict) -> None:
     """Empaquetado Windows: exe portable exterior y paquete MSI."""
     app_name = env["APP_NAME"]
@@ -350,6 +362,7 @@ def main() -> None:
 
     patch_server(env)
     patch_app_name(env)
+    patch_readme_header(env)
     patch_windows_packaging(env)
     patch_server_lock(env)
     if not args.skip_icons:
