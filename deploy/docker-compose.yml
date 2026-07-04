@@ -1,0 +1,46 @@
+# =====================================================================
+# Fontis Remote — servidor: hbbs + hbbr + rustdesk-api (libreta/consola)
+# =====================================================================
+# Si hbbs/hbbr YA corren en el servidor (systemd u otro docker), levanta
+# solo el servicio `rustdesk-api` (docker compose up -d rustdesk-api) y
+# borra o ignora los otros dos. NO regeneres claves: la api no las toca.
+#
+# ⚠️ Los datos de hbbs (id_ed25519 / id_ed25519.pub) son la identidad de
+#    TODOS los clientes desplegados. Haz backup de ./data/hbbs.
+
+services:
+  hbbs:
+    image: rustdesk/rustdesk-server:latest
+    container_name: hbbs
+    command: hbbs
+    network_mode: host
+    volumes:
+      - ./data/hbbs:/root
+    depends_on:
+      - hbbr
+    restart: unless-stopped
+
+  hbbr:
+    image: rustdesk/rustdesk-server:latest
+    container_name: hbbr
+    command: hbbr
+    network_mode: host
+    volumes:
+      - ./data/hbbs:/root
+    restart: unless-stopped
+
+  rustdesk-api:
+    image: lejianwen/rustdesk-api:latest
+    container_name: rustdesk-api
+    environment:
+      - TZ=Europe/Zurich
+      - RUSTDESK_API_LANG=en
+      - RUSTDESK_API_RUSTDESK_ID_SERVER=rustdesk.fontisberatung.ch:21116
+      - RUSTDESK_API_RUSTDESK_RELAY_SERVER=rustdesk.fontisberatung.ch:21117
+      - RUSTDESK_API_RUSTDESK_API_SERVER=http://rustdesk.fontisberatung.ch:21114
+      - RUSTDESK_API_RUSTDESK_KEY=pOjg1dA09pHunbiZa9s9jjap3EnJDn1MbhTksVdDGPo=
+    ports:
+      - "21114:21114"
+    volumes:
+      - ./data/api:/app/data
+    restart: unless-stopped
