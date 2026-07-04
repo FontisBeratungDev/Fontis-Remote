@@ -152,6 +152,28 @@ def patch_app_name(env: dict) -> None:
               f"Nombre visible Linux ({desktop.name})", count=0, flags=re.MULTILINE)
 
 
+GITIGNORE_BLOCK = """
+# Fontis: el `*png` de arriba ignora cualquier PNG nuevo; los assets de
+# marca deben versionarse para que el fork sea autocontenido y los builds
+# de CI incluyan el logo/icono dentro de la app.
+!branding/icons/*.png
+!flutter/assets/icon.png
+!flutter/assets/logo.png
+!flutter/assets/logo_light.png
+!flutter/assets/logo_dark.png
+"""
+
+
+def patch_gitignore(env: dict) -> None:
+    gitignore = SRC / ".gitignore"
+    text = gitignore.read_text(encoding="utf-8")
+    if "!branding/icons/*.png" in text:
+        applied.append(".gitignore: excepciones de assets  (ya aplicado)")
+        return
+    gitignore.write_text(text.rstrip("\n") + "\n" + GITIGNORE_BLOCK, encoding="utf-8")
+    applied.append(".gitignore: excepciones para assets de marca (el *png los ignoraba)")
+
+
 def patch_readme_header(env: dict) -> None:
     """Cabecera del README del fork: logo Fontis en lugar del de RustDesk."""
     app_name = env["APP_NAME"]
@@ -418,6 +440,7 @@ def main() -> None:
 
     patch_server(env)
     patch_app_name(env)
+    patch_gitignore(env)
     patch_readme_header(env)
     patch_readme_urls(env)
     patch_readme_cleanup(env)

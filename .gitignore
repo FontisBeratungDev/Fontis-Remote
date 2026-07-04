@@ -56,3 +56,12 @@ vcpkg_installed
 flutter/lib/generated_plugin_registrant.dart
 libsciter.dylib
 flutter/web/
+
+# Fontis: el `*png` de arriba ignora cualquier PNG nuevo; los assets de
+# marca deben versionarse para que el fork sea autocontenido y los builds
+# de CI incluyan el logo/icono dentro de la app.
+!branding/icons/*.png
+!flutter/assets/icon.png
+!flutter/assets/logo.png
+!flutter/assets/logo_light.png
+!flutter/assets/logo_dark.png
