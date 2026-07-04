@@ -5,7 +5,7 @@
   <a href="#file-structure">Structure</a> •
   <a href="#snapshot">Snapshot</a><br>
   [<a href="docs/README-UA.md">Українська</a>] | [<a href="docs/README-CS.md">česky</a>] | [<a href="docs/README-ZH.md">中文</a>] | [<a href="docs/README-HU.md">Magyar</a>] | [<a href="docs/README-ES.md">Español</a>] | [<a href="docs/README-FA.md">فارسی</a>] | [<a href="docs/README-FR.md">Français</a>] | [<a href="docs/README-DE.md">Deutsch</a>] | [<a href="docs/README-PL.md">Polski</a>] | [<a href="docs/README-ID.md">Indonesian</a>] | [<a href="docs/README-FI.md">Suomi</a>] | [<a href="docs/README-ML.md">മലയാളം</a>] | [<a href="docs/README-JP.md">日本語</a>] | [<a href="docs/README-NL.md">Nederlands</a>] | [<a href="docs/README-IT.md">Italiano</a>] | [<a href="docs/README-RU.md">Русский</a>] | [<a href="docs/README-PTBR.md">Português (Brasil)</a>] | [<a href="docs/README-EO.md">Esperanto</a>] | [<a href="docs/README-KR.md">한국어</a>] | [<a href="docs/README-AR.md">العربي</a>] | [<a href="docs/README-VN.md">Tiếng Việt</a>] | [<a href="docs/README-DA.md">Dansk</a>] | [<a href="docs/README-GR.md">Ελληνικά</a>] | [<a href="docs/README-TR.md">Türkçe</a>] | [<a href="docs/README-NO.md">Norsk</a>] | [<a href="docs/README-RO.md">Română</a>]<br>
-  <b>We need your help to translate this README, <a href="https://github.com/rustdesk/rustdesk/tree/master/src/lang">RustDesk UI</a> and <a href="https://github.com/rustdesk/doc.rustdesk.com">RustDesk Doc</a> to your native language</b>
+  <b>We need your help to translate this README, <a href="https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/lang">RustDesk UI</a> and <a href="https://github.com/rustdesk/doc.rustdesk.com">RustDesk Doc</a> to your native language</b>
 </p>
 
 > [!Caution]
@@ -25,9 +25,9 @@ RustDesk welcomes contribution from everyone. See [CONTRIBUTING.md](docs/CONTRIB
 
 [**FAQ**](https://github.com/rustdesk/rustdesk/wiki/FAQ)
 
-[**BINARY DOWNLOAD**](https://github.com/rustdesk/rustdesk/releases)
+[**BINARY DOWNLOAD**](https://github.com/FontisBeratungDev/Fontis-Remote/releases)
 
-[**NIGHTLY BUILD**](https://github.com/rustdesk/rustdesk/releases/tag/nightly)
+[**NIGHTLY BUILD**](https://github.com/FontisBeratungDev/Fontis-Remote/releases)
 
 [<img src="https://f-droid.org/badge/get-it-on.png"
     alt="Get it on F-Droid"
@@ -38,7 +38,7 @@ RustDesk welcomes contribution from everyone. See [CONTRIBUTING.md](docs/CONTRIB
 
 ## Dependencies
 
-Desktop versions use Flutter or Sciter (deprecated) for GUI, this tutorial is for Sciter only, since it is easier and more friendly to start. Check out our [CI](https://github.com/rustdesk/rustdesk/blob/master/.github/workflows/flutter-build.yml) for building Flutter version.
+Desktop versions use Flutter or Sciter (deprecated) for GUI, this tutorial is for Sciter only, since it is easier and more friendly to start. Check out our [CI](https://github.com/FontisBeratungDev/Fontis-Remote/blob/main/.github/workflows/flutter-build.yml) for building Flutter version.
 
 Please download Sciter dynamic library yourself.
 
@@ -117,7 +117,7 @@ cd
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
-git clone --recurse-submodules https://github.com/rustdesk/rustdesk
+git clone --recurse-submodules https://github.com/FontisBeratungDev/Fontis-Remote
 cd rustdesk
 mkdir -p target/debug
 wget https://raw.githubusercontent.com/c-smile/sciter-sdk/master/bin.lnx/x64/libsciter-gtk.so
@@ -130,7 +130,7 @@ VCPKG_ROOT=$HOME/vcpkg cargo run
 Begin by cloning the repository and building the Docker container:
 
 ```sh
-git clone https://github.com/rustdesk/rustdesk
+git clone https://github.com/FontisBeratungDev/Fontis-Remote
 cd rustdesk
 git submodule update --init --recursive
 docker build -t "rustdesk-builder" .
@@ -158,17 +158,17 @@ Please ensure that you run these commands from the root of the RustDesk reposito
 
 ## File Structure
 
-- **[libs/hbb_common](https://github.com/rustdesk/rustdesk/tree/master/libs/hbb_common)**: video codec, config, tcp/udp wrapper, protobuf, fs functions for file transfer, and some other utility functions
-- **[libs/scrap](https://github.com/rustdesk/rustdesk/tree/master/libs/scrap)**: screen capture
-- **[libs/enigo](https://github.com/rustdesk/rustdesk/tree/master/libs/enigo)**: platform specific keyboard/mouse control
-- **[libs/clipboard](https://github.com/rustdesk/rustdesk/tree/master/libs/clipboard)**: file copy and paste implementation for Windows, Linux, macOS.
-- **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: obsolete Sciter UI (deprecated)
-- **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: audio/clipboard/input/video services, and network connections
-- **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: start a peer connection
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Communicate with [rustdesk-server](https://github.com/rustdesk/rustdesk-server), wait for remote direct (TCP hole punching) or relayed connection
-- **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: platform specific code
-- **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: Flutter code for desktop and mobile
-- **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/v1/js)**: JavaScript for Flutter web client
+- **[libs/hbb_common](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/hbb_common)**: video codec, config, tcp/udp wrapper, protobuf, fs functions for file transfer, and some other utility functions
+- **[libs/scrap](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/scrap)**: screen capture
+- **[libs/enigo](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/enigo)**: platform specific keyboard/mouse control
+- **[libs/clipboard](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/clipboard)**: file copy and paste implementation for Windows, Linux, macOS.
+- **[src/ui](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/ui)**: obsolete Sciter UI (deprecated)
+- **[src/server](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/server)**: audio/clipboard/input/video services, and network connections
+- **[src/client.rs](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/client.rs)**: start a peer connection
+- **[src/rendezvous_mediator.rs](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/rendezvous_mediator.rs)**: Communicate with [rustdesk-server](https://github.com/rustdesk/rustdesk-server), wait for remote direct (TCP hole punching) or relayed connection
+- **[src/platform](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/platform)**: platform specific code
+- **[flutter](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/flutter)**: Flutter code for desktop and mobile
+- **[flutter/web/js](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/flutter/web/v1/js)**: JavaScript for Flutter web client
 
 ## Screenshots
 

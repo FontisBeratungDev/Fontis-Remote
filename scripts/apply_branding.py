@@ -164,6 +164,36 @@ def patch_readme_header(env: dict) -> None:
     )
 
 
+def patch_readme_urls(env: dict) -> None:
+    """URLs del README que apuntan a rustdesk/rustdesk -> repo del fork.
+
+    Se conservan a propósito: la wiki (el fork no tiene), los vídeos de
+    `assets/` (URLs globales de GitHub) y los repos del servidor
+    (rustdesk-server, rustdesk-server-demo).
+    """
+    repo = env.get("REPO_URL", "").rstrip("/")
+    if not repo:
+        warnings.append("Sin REPO_URL en branding.env: URLs del README no cambiadas.")
+        return
+    readme = SRC / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    total = 0
+    for pattern, replacement in [
+        (r'https://github\.com/rustdesk/rustdesk/tree/master/', f'{repo}/tree/main/'),
+        (r'https://github\.com/rustdesk/rustdesk/blob/master/', f'{repo}/blob/main/'),
+        (r'https://github\.com/rustdesk/rustdesk/releases/tag/nightly', f'{repo}/releases'),
+        (r'https://github\.com/rustdesk/rustdesk/releases(?![\w/-])', f'{repo}/releases'),
+        (r'https://github\.com/rustdesk/rustdesk(?![\w/-])', repo),
+    ]:
+        text, n = re.subn(pattern, replacement, text)
+        total += n
+    if total:
+        readme.write_text(text, encoding="utf-8")
+        applied.append(f"README del fork: {total} URLs -> repo Fontis")
+    else:
+        applied.append("README del fork: URLs  (ya aplicado)")
+
+
 def patch_windows_packaging(env: dict) -> None:
     """Empaquetado Windows: exe portable exterior y paquete MSI."""
     app_name = env["APP_NAME"]
@@ -363,6 +393,7 @@ def main() -> None:
     patch_server(env)
     patch_app_name(env)
     patch_readme_header(env)
+    patch_readme_urls(env)
     patch_windows_packaging(env)
     patch_server_lock(env)
     if not args.skip_icons:
