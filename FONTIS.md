@@ -39,7 +39,12 @@ SmartScreen y macOS Gatekeeper mostrarán aviso de editor desconocido.
    `res/*.desktop` (Linux).
 3. Iconos y logo de cabecera (`flutter/assets/logo.png`, `res/*`, ICO/ICNS).
 4. CI: cron nocturno y publicación F-Droid desactivados (solo builds manuales o
-   por tag).
+   por tag). Backport de upstream: `setuptools_scm<10` para AppImage.
+5. Empaquetado Windows: metadatos del exe portable (`libs/portable/Cargo.toml`)
+   y MSI con nombre/fabricante propios (el job renombra el exe del dist a
+   "Fontis Remote.exe" y llama a `preprocess.py --app-name`; `preprocess.py`
+   parcheado para rutas con espacios). El MSI instala en "Fontis Remote" y así
+   aparece en Agregar/Quitar programas.
 
 ## Actualizar a una nueva versión de RustDesk
 

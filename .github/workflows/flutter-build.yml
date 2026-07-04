@@ -351,7 +351,8 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          Move-Item ../../rustdesk/rustdesk.exe "../../rustdesk/Fontis Remote.exe"
+          python preprocess.py --arp -d ../../rustdesk --app-name "Fontis Remote" -m "Fontis Beratung"
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10

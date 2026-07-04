@@ -34,6 +34,9 @@ CONFIG_RS = SRC / "libs" / "hbb_common" / "src" / "config.rs"
 RUNNER_RC = SRC / "flutter" / "windows" / "runner" / "Runner.rc"
 INFO_PLIST = SRC / "flutter" / "macos" / "Runner" / "Info.plist"
 DESKTOP_FILES = [SRC / "res" / "rustdesk.desktop", SRC / "res" / "rustdesk-link.desktop"]
+PORTABLE_TOML = SRC / "libs" / "portable" / "Cargo.toml"
+MSI_PREPROCESS = SRC / "res" / "msi" / "preprocess.py"
+FLUTTER_BUILD_YML = SRC / ".github" / "workflows" / "flutter-build.yml"
 
 applied = []
 warnings = []
@@ -147,6 +150,46 @@ def patch_app_name(env: dict) -> None:
     for desktop in DESKTOP_FILES:
         patch(desktop, r'^Name=.*$', f'Name={app_name}',
               f"Nombre visible Linux ({desktop.name})", count=0, flags=re.MULTILINE)
+
+
+def patch_windows_packaging(env: dict) -> None:
+    """Empaquetado Windows: exe portable exterior y paquete MSI."""
+    app_name = env["APP_NAME"]
+    company = env.get("COMPANY", app_name)
+    copyright_line = f"Copyright © {company}. All rights reserved."
+
+    # Metadatos del empaquetador portable (el .exe autoextraíble que se descarga)
+    patch(PORTABLE_TOML, r'(^description = )"[^"]*"',
+          rf'\1"{app_name}"', "Portable: description", flags=re.MULTILINE)
+    patch(PORTABLE_TOML, r'(^ProductName = )"[^"]*"',
+          rf'\1"{app_name}"', "Portable: ProductName", flags=re.MULTILINE)
+    patch(PORTABLE_TOML, r'(^FileDescription = )"[^"]*"',
+          rf'\1"{app_name}"', "Portable: FileDescription", flags=re.MULTILINE)
+    patch(PORTABLE_TOML, r'(^LegalCopyright = )"[^"]*"',
+          rf'\1"{copyright_line}"', "Portable: LegalCopyright", flags=re.MULTILINE)
+
+    # Copyright del ejecutable interior (Runner.rc)
+    patch(RUNNER_RC, r'(VALUE "LegalCopyright", )"[^"]*"',
+          rf'\1"{copyright_line}"', "Metadatos exe Windows: LegalCopyright")
+
+    # preprocess.py ejecuta el exe sin comillas; con nombre con espacio se rompe
+    patch(
+        MSI_PREPROCESS,
+        r'f"\{dist_app\} \{args\}"|f\'"\{dist_app\}" \{args\}\'',
+        "f'\"{dist_app}\" {args}'",
+        "MSI: rutas con espacios en preprocess.py",
+    )
+
+    # El job de Windows genera el MSI con el nombre y fabricante de la marca.
+    # El MSI exige que el exe del dist se llame <app_name>.exe, así que se
+    # renombra justo antes (el exe portable ya se empaquetó en un paso anterior).
+    patch(
+        FLUTTER_BUILD_YML,
+        r'(?:          Move-Item [^\n]*\n)?          python preprocess\.py --arp -d \.\./\.\./rustdesk[^\n]*',
+        f'          Move-Item ../../rustdesk/rustdesk.exe "../../rustdesk/{app_name}.exe"\n'
+        f'          python preprocess.py --arp -d ../../rustdesk --app-name "{app_name}" -m "{company}"',
+        "MSI: nombre de producto y fabricante en el CI",
+    )
 
 
 def patch_server_lock(env: dict) -> None:
@@ -307,6 +350,7 @@ def main() -> None:
 
     patch_server(env)
     patch_app_name(env)
+    patch_windows_packaging(env)
     patch_server_lock(env)
     if not args.skip_icons:
         patch_icons(env)
