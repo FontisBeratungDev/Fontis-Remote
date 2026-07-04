@@ -36,14 +36,25 @@ registro de conexiones y un cliente web integrado** servido desde vuestro domini
    → los clientes traen el botón de login y la libreta configurados de fábrica
    (release `1.4.8-4`).
 
-## Recomendado (segunda fase del despliegue)
+## TLS con el wildcard *.fontisberatung.ch (recomendado desde el inicio)
 
-- **TLS**: poner un reverse proxy (nginx/caddy) con certificado delante del
-  21114 (`https://rustdesk.fontisberatung.ch/api` o subdominio) y cambiar el
-  `API_SERVER` embebido a https. Sin TLS, las contraseñas de login del cliente
-  viajan por HTTP plano.
-- **Backup**: `./data/hbbs` (claves del servidor — crítico) y `./data/api`
-  (base de datos de usuarios/libreta).
+Ya existe el certificado wildcard de Sectigo (carpeta `STAR.fontisberatung.ch_cert`,
+válido hasta dic-2026). Configuración lista en [nginx-rustdesk.conf](nginx-rustdesk.conf):
+
+- Consola: `https://rustdesk.fontisberatung.ch/_admin/`
+- Cliente web propio: `https://rustdesk.fontisberatung.ch/webclient/`
+- Websockets `wss://` en `/ws/id` y `/ws/relay` (evita el bloqueo por contenido
+  mixto del navegador; con esto 21114/21118/21119 pueden cerrarse al exterior
+  y dejar solo 443).
+- `API_SERVER` embebido en el cliente: `https://rustdesk.fontisberatung.ch`
+
+Sin TLS, las contraseñas de login del cliente viajan por HTTP plano — con el
+wildcard disponible no hay motivo para saltarse este paso.
+
+## Backup
+
+- `./data/hbbs` (claves del servidor — **crítico**: si se pierden, todos los
+  clientes desplegados quedan huérfanos) y `./data/api` (usuarios/libreta).
 
 ## Verificación rápida
 
