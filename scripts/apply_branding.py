@@ -194,6 +194,32 @@ def patch_readme_urls(env: dict) -> None:
         applied.append("README del fork: URLs  (ya aplicado)")
 
 
+def patch_readme_cleanup(env: dict) -> None:
+    """Quita del README del fork secciones de la comunidad RustDesk:
+    índice de traducciones, "Chat with us" y badges de F-Droid/Flathub."""
+    readme = SRC / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    total = 0
+    for pattern in [
+        # Índice de traducciones dentro de la cabecera
+        r'^\s*\[<a href="docs/README-[A-Z]{2,4}\.md">.*<br>\n',
+        # Petición de ayuda con traducciones
+        r'^\s*<b>We need your help to translate.*</b>\n',
+        # Línea de redes sociales
+        r'^Chat with us: .*\n+',
+        # Badges de tiendas (F-Droid / Flathub)
+        r'\[<img src="https://f-droid\.org/[^\]]*\]\([^)]*\)\n?',
+        r'\[<img src="https://flathub\.org/[^\]]*\]\([^)]*\)\n?',
+    ]:
+        text, n = re.subn(pattern, "", text, flags=re.MULTILINE)
+        total += n
+    if total:
+        readme.write_text(text, encoding="utf-8")
+        applied.append(f"README del fork: {total} secciones de comunidad eliminadas")
+    else:
+        applied.append("README del fork: limpieza de secciones  (ya aplicado)")
+
+
 def patch_windows_packaging(env: dict) -> None:
     """Empaquetado Windows: exe portable exterior y paquete MSI."""
     app_name = env["APP_NAME"]
@@ -394,6 +420,7 @@ def main() -> None:
     patch_app_name(env)
     patch_readme_header(env)
     patch_readme_urls(env)
+    patch_readme_cleanup(env)
     patch_windows_packaging(env)
     patch_server_lock(env)
     if not args.skip_icons:
