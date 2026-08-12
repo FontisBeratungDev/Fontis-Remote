@@ -1,8 +1,17 @@
 # Acceso desatendido (equivalente a RealVNC)
 
 Objetivo: acceder a un equipo bloqueado o que arranca/despierta e **iniciar
-sesión de forma automática**, como RealVNC. Todo es **configuración de Windows +
-despliegue**, no cambios en Fontis Remote. Script: [windows-desatendido.ps1](windows-desatendido.ps1).
+sesión de forma automática**, como RealVNC. Todo es **configuración del sistema +
+despliegue**, no cambios en Fontis Remote. Un script por plataforma:
+
+| SO | Script |
+|---|---|
+| Windows | [windows-desatendido.ps1](windows-desatendido.ps1) |
+| macOS | [macos-desatendido.sh](macos-desatendido.sh) |
+| Linux | [linux-desatendido.sh](linux-desatendido.sh) |
+
+El resto del documento detalla Windows; al final están las secciones de macOS y
+Linux con sus particularidades (FileVault, Wayland).
 
 ## Los tres escenarios
 
@@ -71,3 +80,67 @@ powercfg /change hibernate-timeout-ac 0
 
 O configurar Wake-on-LAN (requiere otro equipo encendido en la misma LAN que
 envíe el paquete mágico).
+
+---
+
+## macOS
+
+Script: [macos-desatendido.sh](macos-desatendido.sh) (ejecutar con `sudo`).
+
+```bash
+# Solo acceso remoto (contraseña permanente):
+sudo ./macos-desatendido.sh --set-password 'ClaveRemota123'
+
+# Equipo siempre en el escritorio, sin manos:
+sudo ./macos-desatendido.sh --set-password 'ClaveRemota123' \
+    --auto-login soporte 'ClaveMac' --no-lock
+```
+
+Particularidades macOS:
+- **FileVault vs auto-login**: el auto-login de macOS **no funciona con FileVault
+  activo** (el disco pide contraseña al arrancar). Desactivarlo deja el disco
+  **sin cifrar** — decisión de seguridad seria; solo en equipos físicamente
+  seguros. El script avisa si FileVault está activo.
+- **Permisos**: Fontis Remote necesita "Grabación de pantalla" y "Accesibilidad"
+  (Ajustes del Sistema > Privacidad y seguridad). Se conceden a mano la primera
+  vez, o por **MDM** (Jamf / Intune / Mosyle) con un perfil PPPC en la flota.
+- **Pantalla de login**: el acceso al `loginwindow` de macOS es limitado. El caso
+  fiable es sesión ya iniciada (auto-login) + sin bloqueo.
+- Auto-login se aplica con `sysadminctl -autologin` (gestiona `/etc/kcpassword`
+  de forma soportada).
+
+## Linux
+
+Script: [linux-desatendido.sh](linux-desatendido.sh) (ejecutar con `sudo`).
+Detecta GDM / LightDM / SDDM.
+
+```bash
+sudo ./linux-desatendido.sh --set-password 'ClaveRemota123' \
+    --auto-login soporte --no-sleep
+```
+
+Particularidades Linux:
+- **Wayland vs X11**: el acceso desatendido (captura + inyección de teclado/ratón
+  y pantalla de login) es fiable en **X11, no en Wayland**. Para GDM el script
+  pone `WaylandEnable=false`. En KDE/otros, elige "sesión Xorg/X11" en el login.
+- **Auto-login**: se configura en el gestor de pantalla (GDM/LightDM/SDDM); el
+  script escribe el archivo correcto según cuál detecte. Reiniciar para aplicar.
+- **Bloqueo de pantalla**: se quita desde la sesión del usuario (no root); el
+  script imprime los comandos `gsettings` de GNOME (KDE: Ajustes > Bloqueo de
+  pantalla).
+- **Cifrado de disco**: LUKS pide clave al arrancar — incompatible con arranque
+  100% desatendido, igual que FileVault/BitLocker. Valora el compromiso.
+
+## Resumen de mecanismos por plataforma
+
+| | Windows | macOS | Linux |
+|---|---|---|---|
+| Contraseña remota | `--password` | `--password` | `--password` |
+| Auto-login | AutoAdminLogon | `sysadminctl -autologin` | gestor de pantalla |
+| Sin bloqueo | DisableLockWorkstation | `askForPassword 0` | gsettings / DE |
+| Choca con cifrado | BitLocker* | FileVault (bloquea) | LUKS (bloquea) |
+| Login remoto bloqueado | ✅ servicio | limitado | X11 sí / Wayland no |
+
+\* BitLocker con TPM desbloquea solo al arrancar, así que **sí** convive con
+auto-login (recomendado). FileVault y LUKS piden clave al arranque, así que
+rompen el arranque 100% desatendido.
