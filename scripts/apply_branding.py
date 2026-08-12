@@ -38,6 +38,7 @@ PORTABLE_TOML = SRC / "libs" / "portable" / "Cargo.toml"
 MSI_PREPROCESS = SRC / "res" / "msi" / "preprocess.py"
 FLUTTER_BUILD_YML = SRC / ".github" / "workflows" / "flutter-build.yml"
 WINDOWS_RS = SRC / "src" / "platform" / "windows.rs"
+LINUX_RS = SRC / "src" / "platform" / "linux.rs"
 MACOS_XCCONFIG = SRC / "flutter" / "macos" / "Runner" / "Configs" / "AppInfo.xcconfig"
 BUILD_PY = SRC / "build.py"
 MACOS_PBXPROJ = SRC / "flutter" / "macos" / "Runner.xcodeproj" / "project.pbxproj"
@@ -288,6 +289,38 @@ def patch_windows_packaging(env: dict) -> None:
         f'          python preprocess.py --arp -d ../../rustdesk --app-name "{app_name}" -m "{company}"',
         "MSI: nombre de producto y fabricante en el CI",
     )
+
+
+def patch_linux_app_id(env: dict) -> None:
+    """Linux: usa 'rustdesk' como identificador interno en vez de app_name.
+
+    El runtime construye nombres de proceso, unidad systemd, `.desktop`, rutas
+    `/etc/<id>/` y comandos de bandeja a partir de `get_app_name().to_lowercase()`.
+    Con un app_name con espacio ('fontis remote') esos comandos se parten y el
+    servicio desatendido / la bandeja fallan. El empaquetado Linux (build.py)
+    instala todo como 'rustdesk' y NO se renombra, así que el identificador
+    interno correcto es 'rustdesk' (idéntico al comportamiento upstream). El
+    nombre visible sigue siendo APP_NAME vía get_app_name() sin lowercase.
+    """
+    text = LINUX_RS.read_text(encoding="utf-8")
+    expr = "crate::get_app_name().to_lowercase()"
+    old_flatpak = (
+        '                let app_name = crate::get_app_name();\n'
+        '                format!("com.{}.{}.desktop", app_name.to_lowercase(), app_name)'
+    )
+    new_flatpak = '                "com.rustdesk.RustDesk.desktop".to_owned()'
+    changed = False
+    if expr in text:
+        text = text.replace(expr, '"rustdesk".to_owned()')
+        changed = True
+    if old_flatpak in text:
+        text = text.replace(old_flatpak, new_flatpak)
+        changed = True
+    if changed:
+        LINUX_RS.write_text(text, encoding="utf-8")
+        applied.append("Linux: identificador interno fijado a 'rustdesk'")
+    else:
+        applied.append("Linux: identificador interno  (ya aplicado)")
 
 
 def patch_windows_install_rename(env: dict) -> None:
@@ -575,6 +608,7 @@ def main() -> None:
     patch_readme_cleanup(env)
     patch_windows_packaging(env)
     patch_windows_install_rename(env)
+    patch_linux_app_id(env)
     patch_ci_resilience(env)
     patch_macos_bundle(env)
     patch_server_lock(env)
