@@ -37,6 +37,12 @@ DESKTOP_FILES = [SRC / "res" / "rustdesk.desktop", SRC / "res" / "rustdesk-link.
 PORTABLE_TOML = SRC / "libs" / "portable" / "Cargo.toml"
 MSI_PREPROCESS = SRC / "res" / "msi" / "preprocess.py"
 FLUTTER_BUILD_YML = SRC / ".github" / "workflows" / "flutter-build.yml"
+MACOS_XCCONFIG = SRC / "flutter" / "macos" / "Runner" / "Configs" / "AppInfo.xcconfig"
+MACOS_PBXPROJ = SRC / "flutter" / "macos" / "Runner.xcodeproj" / "project.pbxproj"
+MACOS_XCSCHEME = (
+    SRC / "flutter" / "macos" / "Runner.xcodeproj" / "xcshareddata"
+    / "xcschemes" / "Runner.xcscheme"
+)
 
 applied = []
 warnings = []
@@ -282,6 +288,57 @@ def patch_windows_packaging(env: dict) -> None:
     )
 
 
+def patch_macos_bundle(env: dict) -> None:
+    """Renombra el bundle macOS a '<APP_NAME>.app' (por defecto RustDesk.app).
+
+    Cambia PRODUCT_NAME (nombre del .app y del ejecutable interno) y ajusta las
+    referencias 'RustDesk.app' del CI y del proyecto Xcode, con comillas porque
+    el nombre lleva espacio.
+    """
+    app_name = env["APP_NAME"]
+
+    def rename(path, pattern, repl, marker, desc, count=0, flags=0):
+        """patch() idempotente: si ya está el marcador y no queda el patrón, salta."""
+        text = path.read_text(encoding="utf-8")
+        if marker in text and not re.search(pattern, text, flags):
+            applied.append(f"{desc}  (ya aplicado)")
+            return
+        patch(path, pattern, repl, desc, count=count, flags=flags)
+
+    # PRODUCT_NAME (regex sobre cualquier valor: idempotente de por sí)
+    patch(
+        MACOS_XCCONFIG,
+        r'^PRODUCT_NAME = .*$',
+        f'PRODUCT_NAME = {app_name}',
+        "macOS: PRODUCT_NAME del bundle",
+        flags=re.MULTILINE,
+    )
+    # create-dmg --icon "RustDesk.app" y --hide-extension "RustDesk.app"
+    rename(
+        FLUTTER_BUILD_YML, r'"RustDesk\.app"', f'"{app_name}.app"',
+        f'"{app_name}.app"', "macOS CI: nombre del .app en create-dmg",
+    )
+    # Rutas del .app pasadas a create-dmg/codesign (con comillas por el espacio)
+    rename(
+        FLUTTER_BUILD_YML,
+        r'\./flutter/build/macos/Build/Products/Release/RustDesk\.app',
+        f'"./flutter/build/macos/Build/Products/Release/{app_name}.app"',
+        f'Release/{app_name}.app"', "macOS CI: ruta del .app",
+    )
+    # Referencia del producto en el proyecto Xcode
+    rename(
+        MACOS_PBXPROJ, r'path = RustDesk\.app;', f'path = "{app_name}.app";',
+        f'path = "{app_name}.app";', "macOS: product reference en project.pbxproj",
+        count=1,
+    )
+    # BuildableName del scheme (flutter localiza el .app por aquí)
+    rename(
+        MACOS_XCSCHEME, r'BuildableName = "RustDesk\.app"',
+        f'BuildableName = "{app_name}.app"',
+        f'BuildableName = "{app_name}.app"', "macOS: BuildableName en el scheme",
+    )
+
+
 def patch_server_lock(env: dict) -> None:
     lock = env.get("LOCK_SERVER_SETTINGS", "false").lower() == "true"
     pattern = r'pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> =[^;]*;'
@@ -445,6 +502,7 @@ def main() -> None:
     patch_readme_urls(env)
     patch_readme_cleanup(env)
     patch_windows_packaging(env)
+    patch_macos_bundle(env)
     patch_server_lock(env)
     if not args.skip_icons:
         patch_icons(env)
