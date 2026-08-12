@@ -38,6 +38,7 @@ PORTABLE_TOML = SRC / "libs" / "portable" / "Cargo.toml"
 MSI_PREPROCESS = SRC / "res" / "msi" / "preprocess.py"
 FLUTTER_BUILD_YML = SRC / ".github" / "workflows" / "flutter-build.yml"
 MACOS_XCCONFIG = SRC / "flutter" / "macos" / "Runner" / "Configs" / "AppInfo.xcconfig"
+BUILD_PY = SRC / "build.py"
 MACOS_PBXPROJ = SRC / "flutter" / "macos" / "Runner.xcodeproj" / "project.pbxproj"
 MACOS_XCSCHEME = (
     SRC / "flutter" / "macos" / "Runner.xcodeproj" / "xcshareddata"
@@ -336,6 +337,16 @@ def patch_macos_bundle(env: dict) -> None:
         MACOS_XCSCHEME, r'BuildableName = "RustDesk\.app"',
         f'BuildableName = "{app_name}.app"',
         f'BuildableName = "{app_name}.app"', "macOS: BuildableName en el scheme",
+    )
+    # build.py copia el binario `service` dentro del .app; ruta hardcoded
+    # RustDesk.app (con comillas para el shell por el espacio)
+    rename(
+        BUILD_PY,
+        r'\./build/macos/Build/Products/Release/RustDesk\.app/Contents/MacOS/',
+        f'"./build/macos/Build/Products/Release/{app_name}.app/Contents/MacOS/"',
+        f'Release/{app_name}.app/Contents/MacOS/',
+        "macOS: ruta del .app en build.py (copia del service)",
+        count=1,
     )
 
 
