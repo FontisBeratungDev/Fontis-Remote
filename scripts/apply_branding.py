@@ -37,6 +37,7 @@ DESKTOP_FILES = [SRC / "res" / "rustdesk.desktop", SRC / "res" / "rustdesk-link.
 PORTABLE_TOML = SRC / "libs" / "portable" / "Cargo.toml"
 MSI_PREPROCESS = SRC / "res" / "msi" / "preprocess.py"
 FLUTTER_BUILD_YML = SRC / ".github" / "workflows" / "flutter-build.yml"
+WINDOWS_RS = SRC / "src" / "platform" / "windows.rs"
 MACOS_XCCONFIG = SRC / "flutter" / "macos" / "Runner" / "Configs" / "AppInfo.xcconfig"
 BUILD_PY = SRC / "build.py"
 MACOS_PBXPROJ = SRC / "flutter" / "macos" / "Runner.xcodeproj" / "project.pbxproj"
@@ -289,6 +290,66 @@ def patch_windows_packaging(env: dict) -> None:
     )
 
 
+def patch_windows_install_rename(env: dict) -> None:
+    """Arregla el instalador GUI (install_me) para que renombre el exe.
+
+    install_me copia el binario (rustdesk.exe) pero, a diferencia del path del
+    MSI, NO llamaba a rename_exe_cmd. Con un app_name distinto de 'rustdesk' el
+    exe quedaba como rustdesk.exe mientras los accesos directos, el
+    desinstalador y el registro apuntaban a '<AppName>.exe' (inexistente).
+    Se inserta {rename_exe} tras {copy_exe}, igual que el path del MSI.
+    """
+    text = WINDOWS_RS.read_text(encoding="utf-8")
+    if "{copy_exe}\n{rename_exe}\nreg add {subkey} /f" in text:
+        applied.append("Windows install_me: rename del exe  (ya aplicado)")
+        return
+    patch(
+        WINDOWS_RS,
+        re.escape("{copy_exe}\nreg add {subkey} /f"),
+        "{copy_exe}\n{rename_exe}\nreg add {subkey} /f",
+        "Windows install_me: insertar {rename_exe} en el script",
+    )
+    patch(
+        WINDOWS_RS,
+        re.escape("        copy_exe = copy_exe_cmd(&src_exe, &exe, &path)?,\n"
+                  "        import_config = get_import_config(&exe),"),
+        "        copy_exe = copy_exe_cmd(&src_exe, &exe, &path)?,\n"
+        "        rename_exe = rename_exe_cmd(&src_exe, &path)?,\n"
+        "        import_config = get_import_config(&exe),",
+        "Windows install_me: arg rename_exe",
+    )
+
+
+def patch_ci_resilience(env: dict) -> None:
+    """Descarga del motor Flutter custom (Windows) con reintentos.
+
+    El paso upstream usa un Invoke-WebRequest de una sola pasada; las descargas
+    grandes desde github.com/rustdesk/engine fallan de forma intermitente
+    ('response ended prematurely' / 'socket hang up') y tumban todo el build de
+    Windows. Se envuelve en un bucle de reintentos.
+    """
+    marker = "reintento descarga engine"
+    text = FLUTTER_BUILD_YML.read_text(encoding="utf-8")
+    if marker in text:
+        applied.append("CI: reintentos descarga engine Windows  (ya aplicado)")
+        return
+    old = (
+        "          Invoke-WebRequest -Uri "
+        "https://github.com/rustdesk/engine/releases/download/main/"
+        "windows-x64-release.zip -OutFile windows-x64-release.zip"
+    )
+    new = (
+        "          for ($i=1; $i -le 5; $i++) {\n"
+        "            try { Invoke-WebRequest -Uri https://github.com/rustdesk/engine/"
+        "releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip; break }\n"
+        "            catch { if ($i -eq 5) { throw }; "
+        "Write-Host \"reintento descarga engine $i\"; Start-Sleep -Seconds 15 }\n"
+        "          }"
+    )
+    patch(FLUTTER_BUILD_YML, re.escape(old), new,
+          "CI: reintentos descarga engine Windows")
+
+
 def patch_macos_bundle(env: dict) -> None:
     """Renombra el bundle macOS a '<APP_NAME>.app' (por defecto RustDesk.app).
 
@@ -513,6 +574,8 @@ def main() -> None:
     patch_readme_urls(env)
     patch_readme_cleanup(env)
     patch_windows_packaging(env)
+    patch_windows_install_rename(env)
+    patch_ci_resilience(env)
     patch_macos_bundle(env)
     patch_server_lock(env)
     if not args.skip_icons:
