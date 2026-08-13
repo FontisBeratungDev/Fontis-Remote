@@ -28,8 +28,11 @@ script; es la config de arranque del equipo.
 - **Windows**: ejecutar [wol-windows.ps1](wol-windows.ps1) como administrador
   (habilita "Wake on Magic Packet" en la NIC, arma el dispositivo y desactiva el
   Inicio rápido). Verificar: `powercfg /devicequery wake_armed`.
-- **macOS**: `sudo pmset -a womp 1`  (o Ajustes del Sistema → Energía → "Despertar
-  para acceso de red"). Nota: en portátiles Apple con tapa cerrada WoL es limitado.
+- **macOS**: ejecutar [wol-macos.sh](wol-macos.sh) con `sudo` (`pmset -a womp 1`),
+  o Ajustes del Sistema → Energía → "Despertar para acceso de red". Fiable por
+  **Ethernet**; por Wi-Fi necesita un Bonjour Sleep Proxy (Apple TV / router
+  compatible). Solo desde suspensión, no desde apagado; portátiles con tapa
+  cerrada, limitado.
 - **Linux**: `sudo ethtool -s <interfaz> wol g` (persistir en el gestor de red o
   un servicio systemd; requiere que la NIC soporte WoL — `ethtool <if> | grep Wake`).
 
