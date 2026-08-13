@@ -39,6 +39,7 @@ MSI_PREPROCESS = SRC / "res" / "msi" / "preprocess.py"
 FLUTTER_BUILD_YML = SRC / ".github" / "workflows" / "flutter-build.yml"
 WINDOWS_RS = SRC / "src" / "platform" / "windows.rs"
 LINUX_RS = SRC / "src" / "platform" / "linux.rs"
+LINUX_SERVICE = SRC / "res" / "rustdesk.service"
 MACOS_XCCONFIG = SRC / "flutter" / "macos" / "Runner" / "Configs" / "AppInfo.xcconfig"
 BUILD_PY = SRC / "build.py"
 MACOS_PBXPROJ = SRC / "flutter" / "macos" / "Runner.xcodeproj" / "project.pbxproj"
@@ -288,6 +289,24 @@ def patch_windows_packaging(env: dict) -> None:
         f'          Move-Item ../../rustdesk/rustdesk.exe "../../rustdesk/{app_name}.exe"\n'
         f'          python preprocess.py --arp -d ../../rustdesk --app-name "{app_name}" -m "{company}"',
         "MSI: nombre de producto y fabricante en el CI",
+    )
+
+
+def patch_service_recovery(env: dict) -> None:
+    """Auto-reinicio del servicio Linux ante fallo (Restart=always).
+
+    El servicio ya arranca en el boot (WantedBy=multi-user) y persiste aunque se
+    cierre la GUI. Se añade recuperación ante crash. macOS ya tiene KeepAlive;
+    Windows se cubre por el script de despliegue (sc failure).
+    """
+    if "Restart=always" in LINUX_SERVICE.read_text(encoding="utf-8"):
+        applied.append("Linux: Restart=always en el servicio  (ya aplicado)")
+        return
+    patch(
+        LINUX_SERVICE,
+        r'TimeoutStopSec=30\n',
+        "TimeoutStopSec=30\nRestart=always\nRestartSec=2\n",
+        "Linux: Restart=always en rustdesk.service",
     )
 
 
@@ -609,6 +628,7 @@ def main() -> None:
     patch_windows_packaging(env)
     patch_windows_install_rename(env)
     patch_linux_app_id(env)
+    patch_service_recovery(env)
     patch_ci_resilience(env)
     patch_macos_bundle(env)
     patch_server_lock(env)

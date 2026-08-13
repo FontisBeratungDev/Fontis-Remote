@@ -64,7 +64,9 @@ function Ensure-Service {
     }
     if ($svc.Status -ne 'Running') { Start-Service $ServiceName }
     Set-Service -Name $ServiceName -StartupType Automatic
-    Write-Host "[ok] Servicio '$ServiceName' activo y en arranque automático."
+    # Auto-reinicio ante fallo: reintenta a los 5s, contador se resetea cada dia
+    sc.exe failure "$ServiceName" reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
+    Write-Host "[ok] Servicio '$ServiceName' activo, arranque automático y auto-reinicio ante fallo."
 }
 
 function Set-RemotePassword {
