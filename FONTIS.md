@@ -1,6 +1,6 @@
 # Fontis Remote
 
-Fork de [RustDesk](https://github.com/rustdesk/rustdesk) **1.4.8** con la marca
+Fork de [RustDesk](https://github.com/rustdesk/rustdesk) **1.4.9** con la marca
 Fontis y el servidor propio embebido. Este repositorio es autocontenido: incluye
 la configuración de branding y el script que la aplica.
 
@@ -11,11 +11,11 @@ la configuración de branding y el script que la aplica.
 
 ## Generar instaladores
 
-Push de un tag con formato `X.Y.Z-N` (por ejemplo `1.4.8-1`):
+Push de un tag con formato `X.Y.Z-N` (por ejemplo `1.4.9-1`):
 
 ```
-git tag 1.4.8-2
-git push origin 1.4.8-2
+git tag 1.4.9-2
+git push origin 1.4.9-2
 ```
 
 El workflow **Flutter Tag Build** compila Windows (.exe/.msi), macOS (.dmg x64 y

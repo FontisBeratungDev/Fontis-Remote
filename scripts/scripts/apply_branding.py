@@ -379,6 +379,58 @@ def patch_windows_install_rename(env: dict) -> None:
     )
 
 
+def patch_ci_triggers(env: dict) -> None:
+    """Ajustes de CI del fork: permiso para crear Releases y menos disparadores.
+
+    - flutter-tag.yml / flutter-nightly.yml: `permissions: contents: write`
+      (necesario para publicar el Release si el default de la organización es
+      solo-lectura).
+    - flutter-nightly.yml: cron nocturno desactivado (no gastar minutos).
+    - fdroid.yml: solo manual (no publicamos en F-Droid).
+    """
+    wf = SRC / ".github" / "workflows"
+    tag_yml = wf / "flutter-tag.yml"
+    nightly_yml = wf / "flutter-nightly.yml"
+    fdroid_yml = wf / "fdroid.yml"
+
+    def replace_once(path, old, new, desc):
+        text = path.read_text(encoding="utf-8")
+        if new in text:
+            applied.append(f"{desc}  (ya aplicado)")
+            return
+        if old not in text:
+            fail(f"{desc}: no se encontró el ancla en {path} (¿cambió upstream?)")
+        path.write_text(text.replace(old, new, 1), encoding="utf-8")
+        applied.append(f"{desc}  ->  {path.relative_to(PROJECT_ROOT)}")
+
+    replace_once(
+        tag_yml,
+        "  run-flutter-tag-build:\n    uses: ./.github/workflows/flutter-build.yml",
+        "  run-flutter-tag-build:\n    permissions:\n      contents: write\n"
+        "    uses: ./.github/workflows/flutter-build.yml",
+        "CI: permiso contents:write en flutter-tag",
+    )
+    replace_once(
+        nightly_yml,
+        "on:\n  schedule:\n    # schedule build every night\n    - cron: \"0 0 * * *\"\n"
+        "  workflow_dispatch:\n\njobs:\n  run-flutter-nightly-build:\n"
+        "    uses: ./.github/workflows/flutter-build.yml",
+        "on:\n  # Fontis: cron nocturno desactivado para no gastar minutos de Actions.\n"
+        "  workflow_dispatch:\n\njobs:\n  run-flutter-nightly-build:\n"
+        "    permissions:\n      contents: write\n"
+        "    uses: ./.github/workflows/flutter-build.yml",
+        "CI: nightly sin cron + permiso contents:write",
+    )
+    replace_once(
+        fdroid_yml,
+        "on:\n  workflow_dispatch:\n  push:\n    tags:\n"
+        "      - 'v[0-9]+.[0-9]+.[0-9]+'\n      - '[0-9]+.[0-9]+.[0-9]+'\n"
+        "      - 'v[0-9]+.[0-9]+.[0-9]+-[0-9]+'\n      - '[0-9]+.[0-9]+.[0-9]+-[0-9]+'",
+        "on:\n  # Fontis: solo manual; no publicamos en F-Droid.\n  workflow_dispatch:",
+        "CI: fdroid solo manual",
+    )
+
+
 def patch_ci_resilience(env: dict) -> None:
     """Descarga del motor Flutter custom (Windows) con reintentos.
 
@@ -636,6 +688,7 @@ def main() -> None:
     patch_windows_install_rename(env)
     patch_linux_app_id(env)
     patch_service_recovery(env)
+    patch_ci_triggers(env)
     patch_ci_resilience(env)
     patch_macos_bundle(env)
     patch_server_lock(env)
