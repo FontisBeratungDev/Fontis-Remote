@@ -1,9 +1,17 @@
 # Despliegue de la libreta central (rustdesk-api)
 
 Servidor API community ([lejianwen/rustdesk-api](https://github.com/lejianwen/rustdesk-api))
-que añade a la instalación OSS: **login de usuarios en el cliente, libreta de
+que añade a la instalación: **login de usuarios en el cliente, libreta de
 direcciones centralizada, grupos/etiquetas, consola web de administración,
 registro de conexiones y un cliente web integrado** servido desde vuestro dominio.
+
+> ⚠️ **hbbs/hbbr deben ser el fork `lejianwen/rustdesk-server`, NO el OSS
+> `rustdesk/rustdesk-server`.** Con el OSS, un cliente **con sesión iniciada**
+> falla al conectar ("Failed to secure tcp: deadline has elapsed") porque el
+> hbbs OSS no valida el token de login. El fork lejianwen valida el JWT y todo
+> funciona junto. La clave `RUSTDESK_API_JWT_KEY` debe ser idéntica en api,
+> hbbs y hbbr (`openssl rand -hex 32`). Cambiarla invalida las sesiones activas
+> (los usuarios vuelven a iniciar sesión una vez).
 
 ## Pasos
 

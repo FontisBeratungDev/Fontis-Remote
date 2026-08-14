@@ -1,46 +1,58 @@
 # =====================================================================
-# Fontis Remote — servidor: hbbs + hbbr + rustdesk-api (libreta/consola)
+# Fontis Remote — servidor: hbbs + hbbr (fork lejianwen) + rustdesk-api
 # =====================================================================
-# Si hbbs/hbbr YA corren en el servidor (systemd u otro docker), levanta
-# solo el servicio `rustdesk-api` (docker compose up -d rustdesk-api) y
-# borra o ignora los otros dos. NO regeneres claves: la api no las toca.
+# ⚠️ IMPORTANTE: usar el fork `lejianwen/rustdesk-server`, NO el OSS
+#    `rustdesk/rustdesk-server`. El OSS NO valida el token de login del
+#    rustdesk-api: los clientes CON sesión iniciada fallan al conectar con
+#    "Failed to secure tcp: deadline has elapsed". El fork lejianwen valida
+#    el JWT y todo (libreta + login + conexión) funciona junto.
+#    (Ref: github.com/lejianwen/rustdesk-api issues #92, #514)
 #
-# ⚠️ Los datos de hbbs (id_ed25519 / id_ed25519.pub) son la identidad de
-#    TODOS los clientes desplegados. Haz backup de ./data/hbbs.
+# La clave JWT debe ser la MISMA en api, hbbs y hbbr. Generar una y sustituir
+# TU_CLAVE_JWT en los tres servicios:
+#     openssl rand -hex 32
+#
+# ⚠️ Backup de ./data (id_ed25519 = identidad de TODOS los clientes).
 
 services:
   hbbs:
-    image: rustdesk/rustdesk-server:latest
-    container_name: hbbs
-    command: hbbs
-    network_mode: host
+    container_name: rustdesk-hbbs
+    image: lejianwen/rustdesk-server:latest
+    command: hbbs -r 195.15.214.14 -k _
+    environment:
+      - RUSTDESK_API_JWT_KEY=TU_CLAVE_JWT
+      - RUSTDESK_API_RUSTDESK_API_SERVER=http://127.0.0.1:21114
     volumes:
-      - ./data/hbbs:/root
+      - ./data:/root
+    network_mode: host
     depends_on:
       - hbbr
     restart: unless-stopped
 
   hbbr:
-    image: rustdesk/rustdesk-server:latest
-    container_name: hbbr
-    command: hbbr
-    network_mode: host
+    container_name: rustdesk-hbbr
+    image: lejianwen/rustdesk-server:latest
+    command: hbbr -k _
+    environment:
+      - RUSTDESK_API_JWT_KEY=TU_CLAVE_JWT
     volumes:
-      - ./data/hbbs:/root
+      - ./data:/root
+    network_mode: host
     restart: unless-stopped
 
   rustdesk-api:
-    image: lejianwen/rustdesk-api:latest
     container_name: rustdesk-api
+    image: lejianwen/rustdesk-api:latest
     environment:
       - TZ=Europe/Zurich
       - RUSTDESK_API_LANG=en
       - RUSTDESK_API_RUSTDESK_ID_SERVER=rustdesk.fontisberatung.ch:21116
       - RUSTDESK_API_RUSTDESK_RELAY_SERVER=rustdesk.fontisberatung.ch:21117
-      - RUSTDESK_API_RUSTDESK_API_SERVER=http://rustdesk.fontisberatung.ch:21114
+      - RUSTDESK_API_RUSTDESK_API_SERVER=https://rustdesk.fontisberatung.ch
       - RUSTDESK_API_RUSTDESK_KEY=pOjg1dA09pHunbiZa9s9jjap3EnJDn1MbhTksVdDGPo=
+      - RUSTDESK_API_JWT_KEY=TU_CLAVE_JWT
     ports:
-      - "21114:21114"
+      - "127.0.0.1:21114:21114"
     volumes:
-      - ./data/api:/app/data
+      - ./api-data:/app/data
     restart: unless-stopped
