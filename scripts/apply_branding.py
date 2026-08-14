@@ -379,6 +379,87 @@ def patch_windows_install_rename(env: dict) -> None:
     )
 
 
+def patch_remove_armv7_sciter(env: dict) -> None:
+    """Quita el target armv7 del job build-rustdesk-linux-sciter.
+
+    Es Linux ARM 32-bit con la UI Sciter (deprecada), que la flota no usa y que
+    falla en el cross-build upstream (dependencia lazy_static/scrap). Se deja el
+    resto (x86_64 sciter incluido).
+    """
+    armv7_block = (
+        "\n          - {\n"
+        "              arch: armv7,\n"
+        "              target: armv7-unknown-linux-gnueabihf,\n"
+        "              on: ubuntu-22.04-arm,\n"
+        "              distro: ubuntu18.04-rustdesk,\n"
+        "              deb_arch: armhf,\n"
+        "              sciter_arch: arm32,\n"
+        "              vcpkg-triplet: arm-linux,\n"
+        "              extra_features: \",unix-file-copy-paste\",\n"
+        "            }"
+    )
+    text = FLUTTER_BUILD_YML.read_text(encoding="utf-8")
+    if "armv7-unknown-linux-gnueabihf" not in text:
+        applied.append("CI: armv7-sciter ya quitado  (ya aplicado)")
+        return
+    if armv7_block not in text:
+        fail("CI: bloque armv7-sciter no coincide (¿cambió upstream?)")
+    FLUTTER_BUILD_YML.write_text(text.replace(armv7_block, "", 1), encoding="utf-8")
+    applied.append("CI: quitado target armv7-sciter del job")
+
+
+def patch_ci_triggers(env: dict) -> None:
+    """Ajustes de CI del fork: permiso para crear Releases y menos disparadores.
+
+    - flutter-tag.yml / flutter-nightly.yml: `permissions: contents: write`
+      (necesario para publicar el Release si el default de la organización es
+      solo-lectura).
+    - flutter-nightly.yml: cron nocturno desactivado (no gastar minutos).
+    - fdroid.yml: solo manual (no publicamos en F-Droid).
+    """
+    wf = SRC / ".github" / "workflows"
+    tag_yml = wf / "flutter-tag.yml"
+    nightly_yml = wf / "flutter-nightly.yml"
+    fdroid_yml = wf / "fdroid.yml"
+
+    def replace_once(path, old, new, desc):
+        text = path.read_text(encoding="utf-8")
+        if new in text:
+            applied.append(f"{desc}  (ya aplicado)")
+            return
+        if old not in text:
+            fail(f"{desc}: no se encontró el ancla en {path} (¿cambió upstream?)")
+        path.write_text(text.replace(old, new, 1), encoding="utf-8")
+        applied.append(f"{desc}  ->  {path.relative_to(PROJECT_ROOT)}")
+
+    replace_once(
+        tag_yml,
+        "  run-flutter-tag-build:\n    uses: ./.github/workflows/flutter-build.yml",
+        "  run-flutter-tag-build:\n    permissions:\n      contents: write\n"
+        "    uses: ./.github/workflows/flutter-build.yml",
+        "CI: permiso contents:write en flutter-tag",
+    )
+    replace_once(
+        nightly_yml,
+        "on:\n  schedule:\n    # schedule build every night\n    - cron: \"0 0 * * *\"\n"
+        "  workflow_dispatch:\n\njobs:\n  run-flutter-nightly-build:\n"
+        "    uses: ./.github/workflows/flutter-build.yml",
+        "on:\n  # Fontis: cron nocturno desactivado para no gastar minutos de Actions.\n"
+        "  workflow_dispatch:\n\njobs:\n  run-flutter-nightly-build:\n"
+        "    permissions:\n      contents: write\n"
+        "    uses: ./.github/workflows/flutter-build.yml",
+        "CI: nightly sin cron + permiso contents:write",
+    )
+    replace_once(
+        fdroid_yml,
+        "on:\n  workflow_dispatch:\n  push:\n    tags:\n"
+        "      - 'v[0-9]+.[0-9]+.[0-9]+'\n      - '[0-9]+.[0-9]+.[0-9]+'\n"
+        "      - 'v[0-9]+.[0-9]+.[0-9]+-[0-9]+'\n      - '[0-9]+.[0-9]+.[0-9]+-[0-9]+'",
+        "on:\n  # Fontis: solo manual; no publicamos en F-Droid.\n  workflow_dispatch:",
+        "CI: fdroid solo manual",
+    )
+
+
 def patch_ci_resilience(env: dict) -> None:
     """Descarga del motor Flutter custom (Windows) con reintentos.
 
@@ -467,6 +548,24 @@ def patch_macos_bundle(env: dict) -> None:
         f'Release/{app_name}.app/Contents/MacOS/',
         "macOS: ruta del .app en build.py (copia del service)",
         count=1,
+    )
+
+
+def patch_disable_update_check(env: dict) -> None:
+    """Desactiva la auto-comprobación de actualización del cliente.
+
+    Un cliente con marca no debe avisar "hay versión nueva": las versiones las
+    controla Fontis (releases propios). Además, con api-server el cliente compara
+    contra la versión del rustdesk-api (p.ej. 2.7) y muestra un falso "versión
+    inferior". `enable-check-update` es un ajuste LOCAL, así que va en
+    OVERWRITE_LOCAL_SETTINGS (no en OVERWRITE_SETTINGS).
+    """
+    patch(
+        CONFIG_RS,
+        r'pub static ref OVERWRITE_LOCAL_SETTINGS: RwLock<HashMap<String, String>> =[^;]*;',
+        'pub static ref OVERWRITE_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = '
+        'RwLock::new(HashMap::from([("enable-check-update".to_owned(), "N".to_owned())]));',
+        "Cliente: sin auto-comprobación de actualización (enable-check-update=N)",
     )
 
 
@@ -628,6 +727,8 @@ def main() -> None:
 
     patch_server(env)
     patch_app_name(env)
+    patch_disable_update_check(env)
+    patch_remove_armv7_sciter(env)
     patch_gitignore(env)
     patch_readme_header(env)
     patch_readme_urls(env)
@@ -636,6 +737,7 @@ def main() -> None:
     patch_windows_install_rename(env)
     patch_linux_app_id(env)
     patch_service_recovery(env)
+    patch_ci_triggers(env)
     patch_ci_resilience(env)
     patch_macos_bundle(env)
     patch_server_lock(env)
