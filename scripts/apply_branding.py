@@ -569,6 +569,24 @@ def patch_disable_update_check(env: dict) -> None:
     )
 
 
+def patch_default_input_source(env: dict) -> None:
+    """macOS: 'Input source 2' por defecto para el equipo que controla.
+
+    Input source 1 (grab de teclado de bajo nivel) es frágil con los cambios de
+    foco/app y pierde el teclado al volver a apps Java/ERP como Abacus. Input
+    source 2 lo evita. Va en DEFAULT_LOCAL_SETTINGS (no OVERWRITE) para que sea
+    solo el valor por defecto y el usuario pueda cambiarlo. En clientes Windows
+    esta opción no aplica (inofensiva).
+    """
+    patch(
+        CONFIG_RS,
+        r'pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> =[^;]*;',
+        'pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = '
+        'RwLock::new(HashMap::from([("input-source".to_owned(), "Input source 2".to_owned())]));',
+        "macOS: Input source 2 por defecto (teclado en Abacus tras cambiar de app)",
+    )
+
+
 def patch_server_lock(env: dict) -> None:
     lock = env.get("LOCK_SERVER_SETTINGS", "false").lower() == "true"
     pattern = r'pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> =[^;]*;'
@@ -728,6 +746,7 @@ def main() -> None:
     patch_server(env)
     patch_app_name(env)
     patch_disable_update_check(env)
+    patch_default_input_source(env)
     patch_remove_armv7_sciter(env)
     patch_gitignore(env)
     patch_readme_header(env)
