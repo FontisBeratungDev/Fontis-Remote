@@ -53,7 +53,7 @@ Para el servidor hace falta la llave SSH del equipo (no está en el repo).
 | 1.4.9-1 | 2026-08-14 | Rebase a upstream 1.4.9 (31 parches limpios) | obsoleto: muestra cartel falso "versión inferior" |
 | 1.4.9-2 | 2026-08-14 | Desactivado check de actualización (`enable-check-update=N`), quitado job armv7-sciter | superado |
 | **1.4.9-3** | 2026-08-28 | `input-source = Input source 2` por defecto (teclado en Abacus al cambiar de app) | **vigente** |
-| 1.4.9-4 | 2026-10-11 | `focus_fix` macOS lado controlado: foco Java al volver desde otra app (Abacus). Opción `enable-macos-focus-fix` | compilado (aarch64 OK); por probar en el Mac de Basel |
+| 1.4.9-4 | 2026-10-11 | `focus_fix` macOS lado controlado: foco Java al volver desde otra app (Abacus). Opción `enable-macos-focus-fix` | build OK (21/24, 23 assets, ambos dmg; solo falla i686 no usado); por probar en el Mac de Basel |
 | 1.5.0-1 | 2026-10-11 | Rebase a upstream 1.5.0 (WebRTC, whitelist de IDs, fixes macOS teclado). Todos los parches reaplicados sin cambios | por construir |
 
 Nota: "Acerca de" muestra `1.4.9` en los tres tags 1.4.9-N. El sufijo no llega al binario.
@@ -92,7 +92,10 @@ Detalle en `FONTIS.md` → "Actualizar a una nueva versión". Resumen:
 2. `FONTIS_SRC=../rustdesk-X.Y.Z python -E -P scripts/apply_branding.py` → si falla, upstream movió un ancla: arreglar el parche. (`-E -P` y no `-I`: Pillow suele estar en el user-site, que `-I` ignora.)
 3. Copiar overlay (`branding/`, `scripts/`, `deploy/`, `FONTIS.md`, `BITACORA.md`) al clon; vendorizar `libs/hbb_common` (quitar el submódulo).
 4. El clon es shallow: llevar el árbol a `main` con `robocopy <clon> <fork> /MIR /XD .git /XF .git` **desde PowerShell** (en Git Bash `/MIR` se convierte en ruta) o `rsync -a --delete --exclude .git`, y commit normal (fast-forward). Antes: copiar overlay al clon y borrar `.gitmodules` + `libs/hbb_common/.git`.
-5. Push `main` + tag `X.Y.Z-1`.
+5. **Restaurar bits de ejecución** (robocopy/Windows los pierde en scripts nuevos): comparar
+   `git -C <clon> ls-files -s | awk '$1=="100755"'` con el fork y aplicar `git update-index --chmod=+x <archivo>`.
+   Síntoma si se olvida: AppImage falla con `Permission denied` / exit 126.
+6. Push `main` + tag `X.Y.Z-1`.
 
 ### 3.4 Leer logs de CI sin `gh`
 
@@ -208,6 +211,7 @@ El Mac de Basel es solo un cliente (proceso `AbaClientLauncher`) que se conecta 
 - [ ] Build ligero sin drivers (printer/virtual display). Solo si un AV bloquea en el registro del driver.
 - [ ] Verificar 21116/UDP desde fuera.
 - [ ] Incidente 5.1.
+- [ ] Revisión automática del commit 1.5.0 marcó posible agotamiento de recursos en `src/client/io_loop.rs` (upstream: `mpsc::unbounded_channel` en la cola de reconexión, +675 líneas). Archivo idéntico a upstream, sin parches nuestros. Vigilar issues upstream; no bloquea.
 
 ---
 
@@ -250,3 +254,4 @@ cuelgan del mismo proceso. `AXRaise` y `set frontmost` ejecutan sin error. `AXMi
 delay 0.3 s NO devolvió el teclado (posible: animación interrumpida; repetir con delay 2 s). Resultado de
 AXRaise y frontmost sobre el módulo bloqueado: pendiente de confirmación explícita.
 - **2026-10-11 (noche)** — Actualización a RustDesk 1.5.0: clon shallow `rustdesk-1.5.0`, 31+ parches reaplicados limpios (upstream ya trae `--force-non-host`), iconos regenerados, overlay copiado, hbb_common vendorizado, robocopy /MIR. Script: helper `rel()` para rutas fuera del proyecto. Commit y tag `1.5.0-1`.
+- **2026-10-11 (noche, 2)** — Build 1.5.0-1: fallan AppImage (bits +x perdidos en `appimage/build-apprun.sh` y 3 scripts más) y Windows x64 (paso nuevo upstream "Build pre-built MSI template" espera `rustdesk.exe`, ya renombrado a `Fontis Remote.exe`). Fix: `git update-index --chmod=+x` + parche del `mv` del template en `patch_windows_packaging`. Re-tag 1.5.0-1.

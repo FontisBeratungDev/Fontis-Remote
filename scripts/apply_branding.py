@@ -309,6 +309,15 @@ def patch_windows_packaging(env: dict) -> None:
         f'          python preprocess.py --arp -d ../../rustdesk --app-name "{app_name}" -m "{company}"',
         "MSI: nombre de producto y fabricante en el CI",
     )
+    # 1.5.0+: el paso "Build pre-built MSI template" copia el dist y espera
+    # rustdesk.exe, pero el paso "Build msi" anterior ya lo renombro a <app_name>.exe.
+    text = FLUTTER_BUILD_YML.read_text(encoding="utf-8")
+    old_tpl = "mv ./rustdesk-msi-template/rustdesk.exe ./rustdesk-msi-template/RDAPPNAM.exe"
+    new_tpl = f'mv "./rustdesk-msi-template/{app_name}.exe" ./rustdesk-msi-template/RDAPPNAM.exe'
+    if new_tpl in text:
+        applied.append("MSI template: exe renombrado  (ya aplicado)")
+    elif old_tpl in text:
+        patch(FLUTTER_BUILD_YML, re.escape(old_tpl), new_tpl, "MSI template: exe renombrado")
 
 
 def patch_service_recovery(env: dict) -> None:
