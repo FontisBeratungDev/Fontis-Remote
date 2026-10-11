@@ -417,11 +417,12 @@ jobs:
           version: ${{ env.LLVM_VERSION }}
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
-        with:
-          toolchain: nightly-2023-10-13-${{ matrix.job.target }} # must use nightly here, because of abi_thiscall feature required
-          targets: ${{ matrix.job.target }}
-          components: "rustfmt"
+        # Backport upstream: rustup nuevo exige --force-non-host para toolchains non-host.
+        # Nightly obligatorio por la feature abi_thiscall.
+        shell: bash
+        run: |
+          rustup toolchain install nightly-2023-10-13-${{ matrix.job.target }} --target ${{ matrix.job.target }} --component rustfmt --profile minimal --no-self-update --force-non-host
+          rustup default nightly-2023-10-13-${{ matrix.job.target }} --force-non-host
 
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:

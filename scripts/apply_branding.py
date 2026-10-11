@@ -492,6 +492,44 @@ def patch_ci_resilience(env: dict) -> None:
           "CI: reintentos descarga engine Windows")
 
 
+def patch_ci_sciter_toolchain(env: dict) -> None:
+    """Backport upstream: toolchain i686 del job sciter Windows con --force-non-host.
+
+    rustup reciente rechaza instalar un toolchain non-host
+    (nightly-2023-10-13-i686-pc-windows-msvc en runner x86_64) vía
+    dtolnay/rust-toolchain: 'may not be able to run on this system'. Upstream
+    lo sustituyó por rustup directo con --force-non-host (visto 2026-10-11 en
+    el build 1.4.9-4).
+    """
+    marker = "--force-non-host"
+    text = FLUTTER_BUILD_YML.read_text(encoding="utf-8")
+    if marker in text:
+        applied.append("CI: toolchain sciter i686 con --force-non-host  (ya aplicado)")
+        return
+    old = (
+        "      - name: Install Rust toolchain\n"
+        "        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1\n"
+        "        with:\n"
+        "          toolchain: nightly-2023-10-13-${{ matrix.job.target }} "
+        "# must use nightly here, because of abi_thiscall feature required\n"
+        "          targets: ${{ matrix.job.target }}\n"
+        "          components: \"rustfmt\"\n"
+    )
+    new = (
+        "      - name: Install Rust toolchain\n"
+        "        # Backport upstream: rustup nuevo exige --force-non-host para toolchains non-host.\n"
+        "        # Nightly obligatorio por la feature abi_thiscall.\n"
+        "        shell: bash\n"
+        "        run: |\n"
+        "          rustup toolchain install nightly-2023-10-13-${{ matrix.job.target }} "
+        "--target ${{ matrix.job.target }} --component rustfmt --profile minimal "
+        "--no-self-update --force-non-host\n"
+        "          rustup default nightly-2023-10-13-${{ matrix.job.target }} --force-non-host\n"
+    )
+    patch(FLUTTER_BUILD_YML, re.escape(old), new,
+          "CI: toolchain sciter i686 con --force-non-host")
+
+
 def patch_macos_bundle(env: dict) -> None:
     """Renombra el bundle macOS a '<APP_NAME>.app' (por defecto RustDesk.app).
 
@@ -1022,6 +1060,7 @@ def main() -> None:
     patch_service_recovery(env)
     patch_ci_triggers(env)
     patch_ci_resilience(env)
+    patch_ci_sciter_toolchain(env)
     patch_macos_bundle(env)
     patch_macos_java_focus(env)
     patch_server_lock(env)

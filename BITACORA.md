@@ -224,6 +224,7 @@ El Mac de Basel es solo un cliente (proceso `AbaClientLauncher`) que se conecta 
 - `/api/version` del rustdesk-api devuelve la versión del api, no del cliente: por eso el cartel falso de "versión inferior". Check de actualización desactivado en el cliente.
 - La opción `input-source` es local al equipo que controla y aplica en Windows y macOS (no solo macOS). Guardar un valor igual al default lo borra de la config.
 - Ver el código antes de "crear" una función: audio, micro, WoL y login en pantalla bloqueada ya existían.
+- Job `i686-pc-windows-msvc` (sciter 32-bit, no usado por la flota) falla desde 2026-10 en "Install Rust toolchain": rustup nuevo exige `--force-non-host`. Backport upstream como `patch_ci_sciter_toolchain`. El resto de jobs y el Release no dependen de él (solo `publish_unsigned`, que no se usa).
 
 ---
 
@@ -237,7 +238,7 @@ Entradas resumidas. Las nuevas se añaden al final.
 - **2026-07/08** — Bug "Failed to secure tcp" con sesión iniciada: hbbs OSS no valida el token del api. Migrados hbbs/hbbr a lejianwen/rustdesk-server con JWT compartido. Confirmado resuelto 2026-08-14.
 - **2026-08-14** — Rebase a RustDesk 1.4.9 (31 parches limpios). Tag 1.4.9-1. Cartel falso "versión inferior" → check de actualización desactivado; job armv7-sciter quitado. Tag 1.4.9-2.
 - **2026-08-28** — Abacus en Mac: tras cambiar de app no deja escribir. Causa: Input source 1 (hook de teclado en el equipo que controla). Default cambiado a Input source 2. Tag 1.4.9-3.
-- **2026-10-11 (tarde)** — Pruebas osascript en el Mac de Basel: `set frontmost` y `AXRaise` devuelven el teclado; minimizar por script no. Política de empresa: solo equipos remotos (AbaClient local descartado). Implementado `focus_fix` (parche `patch_macos_java_focus`), docs en FONTIS.md. Pendiente: commit, tag 1.4.9-4, instalar en el Mac de Basel y probar con la contable.
+- **2026-10-11 (tarde)** — Pruebas osascript en el Mac de Basel: `set frontmost` y `AXRaise` devuelven el teclado; minimizar por script no. Política de empresa: solo equipos remotos (AbaClient local descartado). Implementado `focus_fix` (parche `patch_macos_java_focus`), docs en FONTIS.md. Tag 1.4.9-4 empujado (commit 8df3565, run 38159177559). Job i686 falló por rustup (`--force-non-host`); backport aplicado en el árbol, pendiente de commit para el siguiente tag.
 - **2026-10-11** — Revisión de pendientes. Contable reporta el mismo síntoma con 1.4.9-3 e Input source 2, remoto = Mac. Diagnóstico: bug de Java/ULC en macOS con entrada sintética (JDK-8185326). Workaround Dock; pruebas y opciones en §5.1. Creada esta bitácora.
 
 **Nota prueba osascript:** `process "AbaClientLauncher"` dio error -1728 (no existe) con Abacus abierto: el launcher arranca otro proceso (contenedor AbaClient / java). Usar la variante con `delay` + proceso frontmost en vez de nombre fijo.
