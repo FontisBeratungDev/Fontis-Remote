@@ -18,7 +18,7 @@ Eso vive en el gestor de contraseñas del equipo y en el servidor.
 |---|---|
 | Repo (fork de RustDesk con marca) | https://github.com/FontisBeratungDev/Fontis-Remote (remote `fontis`, rama `main`) |
 | Base upstream actual | RustDesk **1.5.0** (`Cargo.toml`, desde 2026-10-11) |
-| Release en distribución | tag **`1.4.9-3`** (Releases en GitHub) |
+| Release en distribución | flota en **`1.4.9-3`**; **`1.5.0-1`** publicado 2026-10-11 (piloto en el Mac de Basel antes de desplegar) |
 | Configuración de marca | `branding/branding.env` (nombre, empresa, servidor, clave pública, API) |
 | Script que aplica la marca | `scripts/apply_branding.py` (idempotente; falla en voz alta si upstream cambió un ancla) |
 | Documentación del fork | `FONTIS.md` (cómo generar instaladores, cambios vs upstream, actualizar versión) |
@@ -54,7 +54,7 @@ Para el servidor hace falta la llave SSH del equipo (no está en el repo).
 | 1.4.9-2 | 2026-08-14 | Desactivado check de actualización (`enable-check-update=N`), quitado job armv7-sciter | superado |
 | **1.4.9-3** | 2026-08-28 | `input-source = Input source 2` por defecto (teclado en Abacus al cambiar de app) | **vigente** |
 | 1.4.9-4 | 2026-10-11 | `focus_fix` macOS lado controlado: foco Java al volver desde otra app (Abacus). Opción `enable-macos-focus-fix` | build OK (21/24, 23 assets, ambos dmg; solo falla i686 no usado); por probar en el Mac de Basel |
-| 1.5.0-1 | 2026-10-11 | Rebase a upstream 1.5.0 (WebRTC, whitelist de IDs, fixes macOS teclado). Todos los parches reaplicados sin cambios | por construir |
+| 1.5.0-1 | 2026-10-11 | Rebase a upstream 1.5.0 (WebRTC, whitelist de IDs, fixes macOS teclado). Todos los parches reaplicados; fixes CI: bits +x y MSI template | **build OK 25/26 (web skipped), 27 assets**; piloto pendiente |
 
 Nota: "Acerca de" muestra `1.4.9` en los tres tags 1.4.9-N. El sufijo no llega al binario.
 Para saber qué build tiene un usuario: menú teclado de la sesión → si "Input source 2" está
@@ -261,4 +261,5 @@ AXRaise y frontmost sobre el módulo bloqueado: pendiente de confirmación expl�
 - **2026-10-11 (noche)** — Actualización a RustDesk 1.5.0: clon shallow `rustdesk-1.5.0`, 31+ parches reaplicados limpios (upstream ya trae `--force-non-host`), iconos regenerados, overlay copiado, hbb_common vendorizado, robocopy /MIR. Script: helper `rel()` para rutas fuera del proyecto. Commit y tag `1.5.0-1`.
 - **2026-10-11 (noche, 2)** — Build 1.5.0-1: fallan AppImage (bits +x perdidos en `appimage/build-apprun.sh` y 3 scripts más) y Windows x64 (paso nuevo upstream "Build pre-built MSI template" espera `rustdesk.exe`, ya renombrado a `Fontis Remote.exe`). Fix: `git update-index --chmod=+x` + parche del `mv` del template en `patch_windows_packaging`. Re-tag 1.5.0-1.
 - **2026-10-11 (noche, 3)** — Revisión del servidor: hbbs/hbbr oficial 1.1.16 (= última) y rustdesk-api v2.7 (= última), digests iguales a Docker Hub: sin actualizaciones de RustDesk. Descubierto que desde 2026-08-27 ya no se usa lejianwen/rustdesk-server; bitácora corregida. Contenedores reiniciados 2026-10-02 (reinicio del host).
-- **2026-10-11 (noche, 4)** — Servidor: actualizados los 6 paquetes Docker; PHP retenido sin tocar. Comprobado: 17 contenedores healthy, puertos 21114-21119 y 21116/udp escuchando, rustdesk api/_admin y Nextcloud 200. El host también aloja GitLab, bugtracker, fm-prod y wg-easy: actualizar Docker los reinicia todos (~5 s, GitLab ~5 min hasta healthy).
+- **2026-10-11 (noche, 4)** — Servidor: actualizados los 6 paquetes Docker; PHP retenido sin tocar. Comprobado: 17 contenedores healthy, puertos 21114-21119 y 21116/udp escuchando, rustdesk api/_admin y Nextcloud 200. El host comparte Docker con otros servicios: actualizar Docker los reinicia todos (~5 s; algunos tardan ~5 min en estar healthy).
+- **2026-10-11 (noche, 5)** — Build 1.5.0-1 (re-tag sobre 9a1e90f) verde: 25/26 jobs, 27 assets (Windows x64/ARM64 exe+msi, macOS Intel+Apple Silicon, Linux deb/rpm/AppImage/flatpak). Clon temporal borrado.
