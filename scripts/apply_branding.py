@@ -46,6 +46,8 @@ MSI_PREPROCESS = SRC / "res" / "msi" / "preprocess.py"
 FLUTTER_BUILD_YML = SRC / ".github" / "workflows" / "flutter-build.yml"
 WINDOWS_RS = SRC / "src" / "platform" / "windows.rs"
 LINUX_RS = SRC / "src" / "platform" / "linux.rs"
+MACOS_RS = SRC / "src" / "platform" / "macos.rs"
+INPUT_SERVICE_RS = SRC / "src" / "server" / "input_service.rs"
 LINUX_SERVICE = SRC / "res" / "rustdesk.service"
 MACOS_XCCONFIG = SRC / "flutter" / "macos" / "Runner" / "Configs" / "AppInfo.xcconfig"
 BUILD_PY = SRC / "build.py"
@@ -587,6 +589,268 @@ def patch_default_input_source(env: dict) -> None:
     )
 
 
+FOCUS_FIX_MARKER = "pub mod focus_fix {"
+
+RUST_FOCUS_FIX = r"""
+// ============================================================================
+// Fontis: focus_fix — foco de teclado en apps Java (AWT/Swing) al volver desde
+// otra app con control remoto. Bug JDK-8185326 (reproducible también con Screen
+// Sharing de Apple): un clic sintético sobre una ventana de una app que no está
+// en primer plano la trae al frente, pero Java no recupera el foco hasta que la
+// ventana vuelve a ser key window. Activar la app por API + AXRaise de la
+// ventana clicada lo arregla (validado con osascript sobre Abacus ULC).
+// Solo actúa cuando el clic cambia de app. Desactivable con la opción del
+// servidor `enable-macos-focus-fix = "N"`.
+// ============================================================================
+pub mod focus_fix {
+    use cocoa::base::{id, nil, BOOL, YES};
+    use cocoa::foundation::NSString;
+    use core_foundation::{
+        array::{CFArrayGetCount, CFArrayGetValueAtIndex},
+        base::{CFRelease, CFTypeRef, TCFType},
+        string::{CFString, CFStringRef},
+    };
+    use core_graphics::{
+        display::{kCGNullWindowID, kCGWindowListOptionOnScreenOnly, CGWindowListCopyWindowInfo},
+        window::{kCGWindowBounds, kCGWindowLayer, kCGWindowOwnerPID},
+    };
+    use hbb_common::log;
+    use objc::rc::autoreleasepool;
+    use objc::{class, msg_send, sel, sel_impl};
+    use std::os::raw::c_void;
+    use std::sync::Mutex;
+    use std::time::Duration;
+
+    type AXUIElementRef = *const c_void;
+    type AXError = i32;
+
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        fn AXUIElementCreateSystemWide() -> AXUIElementRef;
+        fn AXUIElementSetMessagingTimeout(element: AXUIElementRef, timeout: f32) -> AXError;
+        fn AXUIElementCopyElementAtPosition(
+            application: AXUIElementRef,
+            x: f32,
+            y: f32,
+            element: *mut AXUIElementRef,
+        ) -> AXError;
+        fn AXUIElementGetPid(element: AXUIElementRef, pid: *mut i32) -> AXError;
+        fn AXUIElementCopyAttributeValue(
+            element: AXUIElementRef,
+            attribute: CFStringRef,
+            value: *mut CFTypeRef,
+        ) -> AXError;
+        fn AXUIElementPerformAction(element: AXUIElementRef, action: CFStringRef) -> AXError;
+    }
+
+    const OPTION_KEY: &str = "enable-macos-focus-fix";
+    const NS_APPLICATION_ACTIVATE_IGNORING_OTHER_APPS: u64 = 1 << 1;
+    const DELAY_MS: u64 = 120;
+    const AX_TIMEOUT_SECS: f32 = 0.5;
+
+    struct Pending {
+        pid: i32,
+        x: i32,
+        y: i32,
+    }
+
+    static PENDING: Mutex<Option<Pending>> = Mutex::new(None);
+
+    fn enabled() -> bool {
+        hbb_common::config::Config::get_bool_option(OPTION_KEY)
+    }
+
+    /// pid de la app en primer plano. Debe llamarse en el hilo principal.
+    fn frontmost_pid() -> i32 {
+        unsafe {
+            let ws: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+            let app: id = msg_send![ws, frontmostApplication];
+            if app == nil {
+                return 0;
+            }
+            let pid: i32 = msg_send![app, processIdentifier];
+            pid
+        }
+    }
+
+    unsafe fn dict_f64(dict: id, key: &str) -> f64 {
+        let k = NSString::alloc(nil).init_str(key);
+        let v: id = msg_send![dict, valueForKey: k];
+        let f: f64 = if v == nil {
+            0.0
+        } else {
+            msg_send![v, doubleValue]
+        };
+        let _: () = msg_send![k, release];
+        f
+    }
+
+    /// pid de la ventana normal (layer 0) más al frente que contiene el punto.
+    fn window_owner_at(x: i32, y: i32) -> Option<i32> {
+        unsafe {
+            let list =
+                CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID);
+            if list.is_null() {
+                return None;
+            }
+            let (fx, fy) = (x as f64, y as f64);
+            let mut found = None;
+            let n = CFArrayGetCount(list);
+            for i in 0..n {
+                let w: id = CFArrayGetValueAtIndex(list, i) as _;
+                let layer: id = msg_send![w, valueForKey: kCGWindowLayer as id];
+                if layer == nil {
+                    continue;
+                }
+                let layer: i32 = msg_send![layer, intValue];
+                if layer != 0 {
+                    continue;
+                }
+                let bounds: id = msg_send![w, valueForKey: kCGWindowBounds as id];
+                if bounds == nil {
+                    continue;
+                }
+                let (bx, by) = (dict_f64(bounds, "X"), dict_f64(bounds, "Y"));
+                let (bw, bh) = (dict_f64(bounds, "Width"), dict_f64(bounds, "Height"));
+                if fx < bx || fy < by || fx >= bx + bw || fy >= by + bh {
+                    continue;
+                }
+                let pid: id = msg_send![w, valueForKey: kCGWindowOwnerPID as id];
+                if pid == nil {
+                    continue;
+                }
+                let pid: i32 = msg_send![pid, intValue];
+                found = Some(pid);
+                break;
+            }
+            CFRelease(list as _);
+            found
+        }
+    }
+
+    /// Llamar justo ANTES de inyectar el mouse-down izquierdo (hilo principal).
+    pub fn before_left_down() {
+        let mut pending = PENDING.lock().unwrap();
+        *pending = None;
+        if !enabled() {
+            return;
+        }
+        let (x, y) = match super::get_cursor_pos() {
+            Some(p) => p,
+            None => return,
+        };
+        let pid = match window_owner_at(x, y) {
+            Some(pid) => pid,
+            None => return,
+        };
+        if pid <= 0 || pid == std::process::id() as i32 || pid == frontmost_pid() {
+            return;
+        }
+        *pending = Some(Pending { pid, x, y });
+    }
+
+    /// Llamar justo DESPUÉS de inyectar el mouse-up izquierdo (hilo principal).
+    pub fn after_left_up() {
+        let p = match PENDING.lock().unwrap().take() {
+            Some(p) => p,
+            None => return,
+        };
+        dispatch::Queue::main().exec_after(Duration::from_millis(DELAY_MS), move || {
+            activate_and_raise(p.pid, p.x, p.y);
+        });
+    }
+
+    fn activate_and_raise(pid: i32, x: i32, y: i32) {
+        autoreleasepool(|| unsafe {
+            let sys = AXUIElementCreateSystemWide();
+            if sys.is_null() {
+                return;
+            }
+            AXUIElementSetMessagingTimeout(sys, AX_TIMEOUT_SECS);
+            let mut elem: AXUIElementRef = std::ptr::null();
+            let err = AXUIElementCopyElementAtPosition(sys, x as f32, y as f32, &mut elem);
+            CFRelease(sys as _);
+            if err != 0 || elem.is_null() {
+                log::debug!("focus_fix: sin elemento bajo el cursor (err {})", err);
+                return;
+            }
+            // Si la ventana clicada ya no está bajo el cursor (cerrada/minimizada), no tocar nada.
+            let mut elem_pid: i32 = 0;
+            if AXUIElementGetPid(elem, &mut elem_pid) != 0 || elem_pid != pid {
+                CFRelease(elem as _);
+                return;
+            }
+            let app: id = msg_send![
+                class!(NSRunningApplication),
+                runningApplicationWithProcessIdentifier: pid
+            ];
+            let mut activated = false;
+            if app != nil {
+                let ok: BOOL =
+                    msg_send![app, activateWithOptions: NS_APPLICATION_ACTIVATE_IGNORING_OTHER_APPS];
+                activated = ok == YES;
+            }
+            let mut raised = false;
+            let mut win: CFTypeRef = std::ptr::null();
+            let attr = CFString::new("AXWindow");
+            if AXUIElementCopyAttributeValue(elem, attr.as_concrete_TypeRef(), &mut win) == 0
+                && !win.is_null()
+            {
+                let action = CFString::new("AXRaise");
+                raised = AXUIElementPerformAction(win as AXUIElementRef, action.as_concrete_TypeRef())
+                    == 0;
+                CFRelease(win);
+            }
+            CFRelease(elem as _);
+            log::info!("focus_fix: pid {} activated={} raised={}", pid, activated, raised);
+        });
+    }
+}
+"""
+
+
+def patch_macos_java_focus(env: dict) -> None:
+    """macOS (lado controlado): foco de teclado en apps Java al volver desde otra app.
+
+    Bug JDK-8185326: con control remoto (también Screen Sharing de Apple) un clic
+    sintético sobre una ventana Java de una app que no está en primer plano la
+    trae al frente pero Swing no recupera el foco de teclado (caso Abacus ULC,
+    2026-10-11). Validado con osascript: activar la app y hacer AXRaise de la
+    ventana lo arregla. Se añade el módulo `focus_fix` a macos.rs y dos hooks en
+    input_service.rs (antes del mouse-down y tras el mouse-up izquierdos). Solo
+    actúa si el clic cambia de app. Opción del servidor `enable-macos-focus-fix=N`
+    lo desactiva.
+    """
+    text = MACOS_RS.read_text(encoding="utf-8")
+    if FOCUS_FIX_MARKER in text:
+        applied.append("macOS focus_fix: módulo en macos.rs  (ya aplicado)")
+    else:
+        MACOS_RS.write_text(text.rstrip("\n") + "\n" + RUST_FOCUS_FIX.rstrip("\n") + "\n",
+                            encoding="utf-8")
+        applied.append(
+            f"macOS focus_fix: módulo en macos.rs  ->  {MACOS_RS.relative_to(PROJECT_ROOT)}")
+    text = INPUT_SERVICE_RS.read_text(encoding="utf-8")
+    if "focus_fix::before_left_down" in text:
+        applied.append("macOS focus_fix: hooks en input_service.rs  (ya aplicado)")
+        return
+    patch(
+        INPUT_SERVICE_RS,
+        re.escape("                allow_err!(en.mouse_down(MouseButton::Left));"),
+        '                #[cfg(target_os = "macos")]\n'
+        '                crate::platform::macos::focus_fix::before_left_down();\n'
+        '                allow_err!(en.mouse_down(MouseButton::Left));',
+        "macOS focus_fix: hook antes del mouse-down izquierdo",
+    )
+    patch(
+        INPUT_SERVICE_RS,
+        re.escape("                en.mouse_up(MouseButton::Left);"),
+        '                en.mouse_up(MouseButton::Left);\n'
+        '                #[cfg(target_os = "macos")]\n'
+        '                crate::platform::macos::focus_fix::after_left_up();',
+        "macOS focus_fix: hook tras el mouse-up izquierdo",
+    )
+
+
 def patch_server_lock(env: dict) -> None:
     lock = env.get("LOCK_SERVER_SETTINGS", "false").lower() == "true"
     pattern = r'pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> =[^;]*;'
@@ -759,6 +1023,7 @@ def main() -> None:
     patch_ci_triggers(env)
     patch_ci_resilience(env)
     patch_macos_bundle(env)
+    patch_macos_java_focus(env)
     patch_server_lock(env)
     if not args.skip_icons:
         patch_icons(env)

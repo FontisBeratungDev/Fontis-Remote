@@ -45,6 +45,11 @@ SmartScreen y macOS Gatekeeper mostrarán aviso de editor desconocido.
    "Fontis Remote.exe" y llama a `preprocess.py --app-name`; `preprocess.py`
    parcheado para rutas con espacios). El MSI instala en "Fontis Remote" y así
    aparece en Agregar/Quitar programas.
+6. macOS, lado controlado: módulo `focus_fix` en `src/platform/macos.rs` con
+   hooks en `src/server/input_service.rs`. Tras un clic que cambia de app,
+   activa la app y hace AXRaise de la ventana clicada: las apps Java (Abacus
+   ULC) no recuperaban el foco de teclado con entrada remota (JDK-8185326).
+   Se desactiva con la opción del servidor `enable-macos-focus-fix = "N"`.
 
 ## Actualizar a una nueva versión de RustDesk
 

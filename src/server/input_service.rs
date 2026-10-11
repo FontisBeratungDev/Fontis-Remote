@@ -1134,6 +1134,8 @@ pub fn handle_mouse_simulation_(evt: &MouseEvent, conn: i32) {
         }
         MOUSE_TYPE_DOWN => match buttons {
             MOUSE_BUTTON_LEFT => {
+                #[cfg(target_os = "macos")]
+                crate::platform::macos::focus_fix::before_left_down();
                 allow_err!(en.mouse_down(MouseButton::Left));
             }
             MOUSE_BUTTON_RIGHT => {
@@ -1153,6 +1155,8 @@ pub fn handle_mouse_simulation_(evt: &MouseEvent, conn: i32) {
         MOUSE_TYPE_UP => match buttons {
             MOUSE_BUTTON_LEFT => {
                 en.mouse_up(MouseButton::Left);
+                #[cfg(target_os = "macos")]
+                crate::platform::macos::focus_fix::after_left_up();
             }
             MOUSE_BUTTON_RIGHT => {
                 en.mouse_up(MouseButton::Right);
