@@ -58,6 +58,16 @@ MACOS_XCSCHEME = (
 )
 
 applied = []
+
+
+def rel(path: Path) -> str:
+    """Ruta corta para los mensajes; tolera FONTIS_SRC fuera del proyecto."""
+    for base in (PROJECT_ROOT, SRC):
+        try:
+            return str(path.relative_to(base))
+        except ValueError:
+            continue
+    return str(path)
 warnings = []
 
 
@@ -100,7 +110,7 @@ def patch(path: Path, pattern: str, replacement: str, desc: str, count: int = 1,
         )
     if new_text != text:
         path.write_text(new_text, encoding="utf-8")
-        applied.append(f"{desc}  ->  {path.relative_to(PROJECT_ROOT)}")
+        applied.append(f"{desc}  ->  {rel(path)}")
     else:
         applied.append(f"{desc}  (ya aplicado)")
 
@@ -432,7 +442,7 @@ def patch_ci_triggers(env: dict) -> None:
         if old not in text:
             fail(f"{desc}: no se encontró el ancla en {path} (¿cambió upstream?)")
         path.write_text(text.replace(old, new, 1), encoding="utf-8")
-        applied.append(f"{desc}  ->  {path.relative_to(PROJECT_ROOT)}")
+        applied.append(f"{desc}  ->  {rel(path)}")
 
     replace_once(
         tag_yml,
@@ -866,7 +876,7 @@ def patch_macos_java_focus(env: dict) -> None:
         MACOS_RS.write_text(text.rstrip("\n") + "\n" + RUST_FOCUS_FIX.rstrip("\n") + "\n",
                             encoding="utf-8")
         applied.append(
-            f"macOS focus_fix: módulo en macos.rs  ->  {MACOS_RS.relative_to(PROJECT_ROOT)}")
+            f"macOS focus_fix: módulo en macos.rs  ->  {rel(MACOS_RS)}")
     text = INPUT_SERVICE_RS.read_text(encoding="utf-8")
     if "focus_fix::before_left_down" in text:
         applied.append("macOS focus_fix: hooks en input_service.rs  (ya aplicado)")
@@ -965,13 +975,13 @@ def patch_icons(env: dict) -> None:
 
     def save_png(target: Path, size: int) -> None:
         master.resize((size, size), Image.LANCZOS).save(target, format="PNG")
-        applied.append(f"Icono {size}x{size}  ->  {target.relative_to(PROJECT_ROOT)}")
+        applied.append(f"Icono {size}x{size}  ->  {rel(target)}")
 
     def save_ico(target: Path) -> None:
         base = master.resize((256, 256), Image.LANCZOS)
         base.save(target, format="ICO",
                   sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)])
-        applied.append(f"Icono ICO  ->  {target.relative_to(PROJECT_ROOT)}")
+        applied.append(f"Icono ICO  ->  {rel(target)}")
 
     res = SRC / "res"
     save_png(res / "icon.png", 1024)
@@ -993,7 +1003,7 @@ def patch_icons(env: dict) -> None:
         icns_target, format="ICNS",
         append_images=[master.resize((s, s), Image.LANCZOS) for s in icns_sizes],
     )
-    applied.append(f"Icono ICNS  ->  {icns_target.relative_to(PROJECT_ROOT)}")
+    applied.append(f"Icono ICNS  ->  {rel(icns_target)}")
 
     # Iconos de bandeja de macOS (mantener dimensiones originales)
     for tray_name in ("mac-tray-dark-x2.png", "mac-tray-light-x2.png"):
@@ -1001,20 +1011,20 @@ def patch_icons(env: dict) -> None:
         if tray_target.exists():
             w, h = Image.open(tray_target).size
             master.resize((w, h), Image.LANCZOS).save(tray_target, format="PNG")
-            applied.append(f"Icono bandeja macOS  ->  {tray_target.relative_to(PROJECT_ROOT)}")
+            applied.append(f"Icono bandeja macOS  ->  {rel(tray_target)}")
 
     # Logo de cabecera dentro de la app (máx 300x60, BoxFit.contain)
     if logo_path is not None:
         assets = SRC / "flutter" / "assets"
         logo = Image.open(logo_path).convert("RGBA")
         logo.save(assets / "logo.png", format="PNG")
-        applied.append(f"Logo de cabecera  ->  {(assets / 'logo.png').relative_to(PROJECT_ROOT)}")
+        applied.append(f"Logo de cabecera  ->  {rel(assets / 'logo.png')}")
         for variant, target in (("logo_light.png", "logo_light.png"),
                                 ("logo_dark.png", "logo_dark.png")):
             source = find_asset(variant)
             if source is not None:
                 Image.open(source).convert("RGBA").save(assets / target, format="PNG")
-                applied.append(f"Logo ({variant})  ->  {(assets / target).relative_to(PROJECT_ROOT)}")
+                applied.append(f"Logo ({variant})  ->  {rel(assets / target)}")
 
 
 # ----------------------------------------------------------------------------

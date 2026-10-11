@@ -3,7 +3,7 @@
   <a href="#raw-steps-to-build">Build</a> •
   <a href="#how-to-build-with-docker">Docker</a> •
   <a href="#file-structure">Structure</a> •
-  <a href="#snapshot">Snapshot</a><br>
+  <a href="#screenshots">Screenshots</a><br>
 </p>
 
 > [!Caution]
@@ -28,7 +28,7 @@ RustDesk welcomes contribution from everyone. See [CONTRIBUTING.md](docs/CONTRIB
 
 ## Dependencies
 
-Desktop versions use Flutter or Sciter (deprecated) for GUI, this tutorial is for Sciter only, since it is easier and more friendly to start. Check out our [CI](https://github.com/FontisBeratungDev/Fontis-Remote/blob/main/.github/workflows/flutter-build.yml) for building Flutter version.
+Desktop versions use Flutter or Sciter (deprecated) for GUI. This tutorial is for Sciter only, since it is easier and more friendly to start. Check out our [CI](https://github.com/FontisBeratungDev/Fontis-Remote/blob/main/.github/workflows/flutter-build.yml) for building the Flutter version.
 
 Please download Sciter dynamic library yourself.
 
@@ -56,19 +56,19 @@ Please download Sciter dynamic library yourself.
 ```sh
 sudo apt install -y zip g++ gcc git curl wget nasm yasm libgtk-3-dev clang libxcb-randr0-dev libxdo-dev \
         libxfixes-dev libxcb-shape0-dev libxcb-xfixes0-dev libasound2-dev libpulse-dev cmake make \
-        libclang-dev ninja-build libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libpam0g-dev
+        libclang-dev ninja-build libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 ```
 
 ### openSUSE Tumbleweed
 
 ```sh
-sudo zypper install gcc-c++ git curl wget nasm yasm gcc gtk3-devel clang libxcb-devel libXfixes-devel cmake alsa-lib-devel gstreamer-devel gstreamer-plugins-base-devel xdotool-devel pam-devel
+sudo zypper install gcc-c++ git curl wget nasm yasm gcc gtk3-devel clang libxcb-devel libXfixes-devel cmake alsa-lib-devel gstreamer-devel gstreamer-plugins-base-devel xdotool-devel
 ```
 
 ### Fedora 28 (CentOS 8)
 
 ```sh
-sudo yum -y install gcc-c++ git curl wget nasm yasm gcc gtk3-devel clang libxcb-devel libxdo-devel libXfixes-devel pulseaudio-libs-devel cmake alsa-lib-devel gstreamer1-devel gstreamer1-plugins-base-devel pam-devel
+sudo yum -y install gcc-c++ git curl wget nasm yasm gcc gtk3-devel clang libxcb-devel libxdo-devel libXfixes-devel pulseaudio-libs-devel cmake alsa-lib-devel gstreamer1-devel gstreamer1-plugins-base-devel
 ```
 
 ### Arch (Manjaro)
@@ -148,7 +148,8 @@ Please ensure that you run these commands from the root of the RustDesk reposito
 
 ## File Structure
 
-- **[libs/hbb_common](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/hbb_common)**: video codec, config, tcp/udp wrapper, protobuf, fs functions for file transfer, and some other utility functions
+- **[libs/hbb_common](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/hbb_common)**: video codec, config, tcp/udp wrapper, and some other utility functions shared with the server
+- **[libs/base](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/base)**: protobuf, fs functions for file transfer, keyboard and platform code used only by this app
 - **[libs/scrap](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/scrap)**: screen capture
 - **[libs/enigo](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/enigo)**: platform specific keyboard/mouse control
 - **[libs/clipboard](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/libs/clipboard)**: file copy and paste implementation for Windows, Linux, macOS.
@@ -158,7 +159,6 @@ Please ensure that you run these commands from the root of the RustDesk reposito
 - **[src/rendezvous_mediator.rs](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/rendezvous_mediator.rs)**: Communicate with [rustdesk-server](https://github.com/rustdesk/rustdesk-server), wait for remote direct (TCP hole punching) or relayed connection
 - **[src/platform](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/src/platform)**: platform specific code
 - **[flutter](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/flutter)**: Flutter code for desktop and mobile
-- **[flutter/web/js](https://github.com/FontisBeratungDev/Fontis-Remote/tree/main/flutter/web/v1/js)**: JavaScript for Flutter web client
 
 ## Screenshots
 

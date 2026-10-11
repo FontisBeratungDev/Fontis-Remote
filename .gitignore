@@ -56,6 +56,8 @@ vcpkg_installed
 flutter/lib/generated_plugin_registrant.dart
 libsciter.dylib
 flutter/web/
+# libdrmtap is cloned at build time by build.py (not a submodule)
+/third_party/libdrmtap/
 
 # Fontis: el `*png` de arriba ignora cualquier PNG nuevo; los assets de
 # marca deben versionarse para que el fork sea autocontenido y los builds
