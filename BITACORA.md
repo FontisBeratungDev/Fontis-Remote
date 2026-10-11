@@ -118,12 +118,12 @@ Buscar servidor y clave en `librustdesk.dll`. Ojo: el compilador parte cadenas c
 
 ### 3.6 Servidor
 
-- Docker Compose en el VPS (`/home/rustdesk`): `hbbs`, `hbbr` (imagen **lejianwen/rustdesk-server**, valida el JWT del api) y `rustdesk-api` (lejianwen) en `127.0.0.1:21114`.
+- Docker Compose en el VPS (`/home/rustdesk`): `hbbs`, `hbbr` con imagen **oficial `rustdesk/rustdesk-server:1.1.16`** (desde 2026-08-27; antes lejianwen/rustdesk-server) y `rustdesk-api` (`lejianwen/rustdesk-api:latest` = v2.7) en `127.0.0.1:21114`. Las variables `RUSTDESK_API_*` siguen en hbbs/hbbr pero la imagen oficial no las usa.
 - Apache publica `https://rustdesk.fontisberatung.ch` → api/consola `/_admin/`, `wss` en `/ws/id` y `/ws/relay`. Cert wildcard Sectigo hasta dic-2026.
 - Puertos abiertos: 21115-21119 TCP (21116 UDP sin verificar desde fuera).
 - Plantillas y guía en `deploy/docker-compose.yml`, `deploy/nginx-rustdesk.conf`, `deploy/README.md`.
-- Backups del compose en el servidor: `.bak` (pre-api) y `.bak-lejianwen` (pre-migración).
-- Por qué lejianwen y no el hbbs oficial: con sesión iniciada el cliente hace handshake con token y el hbbs OSS no lo valida → "Failed to secure tcp: deadline has elapsed". Confirmado y cerrado 2026-08-14.
+- Backups del compose en el servidor: `.bak` (pre-api), `.bak-lejianwen` (pre-migración a lejianwen) y `.bak-20260827` (config lejianwen, rollback si vuelve el error de login).
+- Historia: 2026-08-14 se pasó a lejianwen/rustdesk-server porque con sesión iniciada el cliente fallaba ("Failed to secure tcp: deadline has elapsed"). 2026-08-27 se volvió a la oficial 1.1.16 (motivo no registrado; 1.1.16 corrige amplificación UDP en punch-hole y lejianwen no publica desde 2025-09). Verificar que el login no ha vuelto a romper las conexiones.
 
 ---
 
@@ -211,6 +211,11 @@ El Mac de Basel es solo un cliente (proceso `AbaClientLauncher`) que se conecta 
 - [ ] Build ligero sin drivers (printer/virtual display). Solo si un AV bloquea en el registro del driver.
 - [ ] Verificar 21116/UDP desde fuera.
 - [ ] Incidente 5.1.
+- [ ] Servidor: confirmar con un cliente **con sesión iniciada** que conecta a un equipo con hbbs oficial 1.1.16 (si vuelve "Failed to secure tcp", rollback a `.bak-20260827`).
+- [ ] Servidor: `rustdesk-api` v2.7 sin releases desde 2025-09. Probar login y libreta de direcciones con el cliente 1.5.0-1.
+- [x] Servidor: Docker actualizado 2026-10-11 (29.8.2 → 29.9.0, containerd 2.4.1). 17 contenedores sanos tras el reinicio.
+- [ ] Servidor: 12 metapaquetes PHP retenidos a propósito (`apt-mark hold`): instalarlos pasaría Apache/Nextcloud de PHP 8.1 a 8.4. Decisión aparte, con prueba de Nextcloud.
+- [ ] Servidor: `php8.2-fpm` y `php8.3-fpm` usan librerías antiguas (needrestart); reiniciarlos en una ventana tranquila.
 - [ ] Revisión automática del commit 1.5.0 marcó posible agotamiento de recursos en `src/client/io_loop.rs` (upstream: `mpsc::unbounded_channel` en la cola de reconexión, +675 líneas). Archivo idéntico a upstream, sin parches nuestros. Vigilar issues upstream; no bloquea.
 
 ---
@@ -255,3 +260,5 @@ delay 0.3 s NO devolvió el teclado (posible: animación interrumpida; repetir c
 AXRaise y frontmost sobre el módulo bloqueado: pendiente de confirmación explícita.
 - **2026-10-11 (noche)** — Actualización a RustDesk 1.5.0: clon shallow `rustdesk-1.5.0`, 31+ parches reaplicados limpios (upstream ya trae `--force-non-host`), iconos regenerados, overlay copiado, hbb_common vendorizado, robocopy /MIR. Script: helper `rel()` para rutas fuera del proyecto. Commit y tag `1.5.0-1`.
 - **2026-10-11 (noche, 2)** — Build 1.5.0-1: fallan AppImage (bits +x perdidos en `appimage/build-apprun.sh` y 3 scripts más) y Windows x64 (paso nuevo upstream "Build pre-built MSI template" espera `rustdesk.exe`, ya renombrado a `Fontis Remote.exe`). Fix: `git update-index --chmod=+x` + parche del `mv` del template en `patch_windows_packaging`. Re-tag 1.5.0-1.
+- **2026-10-11 (noche, 3)** — Revisión del servidor: hbbs/hbbr oficial 1.1.16 (= última) y rustdesk-api v2.7 (= última), digests iguales a Docker Hub: sin actualizaciones de RustDesk. Descubierto que desde 2026-08-27 ya no se usa lejianwen/rustdesk-server; bitácora corregida. Contenedores reiniciados 2026-10-02 (reinicio del host).
+- **2026-10-11 (noche, 4)** — Servidor: actualizados los 6 paquetes Docker; PHP retenido sin tocar. Comprobado: 17 contenedores healthy, puertos 21114-21119 y 21116/udp escuchando, rustdesk api/_admin y Nextcloud 200. El host también aloja GitLab, bugtracker, fm-prod y wg-easy: actualizar Docker los reinicia todos (~5 s, GitLab ~5 min hasta healthy).
