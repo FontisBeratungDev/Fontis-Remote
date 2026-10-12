@@ -136,6 +136,7 @@ Buscar servidor y clave en `librustdesk.dll`. Ojo: el compilador parte cadenas c
 | Wake-on-LAN | `wake-on-lan.md`, `wol-windows.ps1`, `wol-macos.sh` | Ya existe en RustDesk; necesita otro equipo encendido en la misma LAN |
 | Servicio persistente | `servicio-persistente.md` | — |
 | macOS Gatekeeper "dañado" | `FONTIS.md` | Falta notarización: `xattr -cr "/Applications/Fontis Remote.app"` |
+| **Instalar o actualizar en macOS** (builds sin firma Apple) | — | 1) Cerrar Fontis Remote y sustituir la app en Aplicaciones. 2) `xattr -cr "/Applications/Fontis Remote.app"`. 3) En Privacidad y seguridad, **quitar con − y volver a añadir** Fontis Remote en Accesibilidad, Grabación de pantalla y Monitorización de entrada: cada build nueva invalida los permisos aunque sigan marcados. 4) Reiniciar. Sin esto la app no arranca o no acepta conexiones (visto con 1.5.0-1 en Basel, 2026-10-12). Se acaba con firma Developer ID + notarización. |
 
 Funciones "tipo RealVNC" pedidas y que **ya existen** en RustDesk (no requieren build):
 audio remoto (default on), micrófono (Voice Call), WoL, login en pantalla bloqueada.
@@ -211,6 +212,7 @@ El Mac de Basel es solo un cliente (proceso `AbaClientLauncher`) que se conecta 
 - [ ] Build ligero sin drivers (printer/virtual display). Solo si un AV bloquea en el registro del driver.
 - [ ] Verificar 21116/UDP desde fuera.
 - [ ] Incidente 5.1.
+- [ ] macOS: rutas `Fontis Remote` sin comillas en `daemon.plist` e `install/update/uninstall.scpt` (servicio root nunca arranca; afecta acceso desatendido antes del login). Arreglo previsto en 1.5.0-2, con `allow-auto-update=N` forzado.
 - [ ] Servidor: confirmar con un cliente **con sesión iniciada** que conecta a un equipo con hbbs oficial 1.1.16 (si vuelve "Failed to secure tcp", rollback a `.bak-20260827`).
 - [ ] Servidor: `rustdesk-api` v2.7 sin releases desde 2025-09. Probar login y libreta de direcciones con el cliente 1.5.0-1.
 - [x] Servidor: Docker actualizado 2026-10-11 (29.8.2 → 29.9.0, containerd 2.4.1). 17 contenedores sanos tras el reinicio.
@@ -263,3 +265,4 @@ AXRaise y frontmost sobre el módulo bloqueado: pendiente de confirmación expl�
 - **2026-10-11 (noche, 3)** — Revisión del servidor: hbbs/hbbr oficial 1.1.16 (= última) y rustdesk-api v2.7 (= última), digests iguales a Docker Hub: sin actualizaciones de RustDesk. Descubierto que desde 2026-08-27 ya no se usa lejianwen/rustdesk-server; bitácora corregida. Contenedores reiniciados 2026-10-02 (reinicio del host).
 - **2026-10-11 (noche, 4)** — Servidor: actualizados los 6 paquetes Docker; PHP retenido sin tocar. Comprobado: 17 contenedores healthy, puertos 21114-21119 y 21116/udp escuchando, rustdesk api/_admin y Nextcloud 200. El host comparte Docker con otros servicios: actualizar Docker los reinicia todos (~5 s; algunos tardan ~5 min en estar healthy).
 - **2026-10-11 (noche, 5)** — Build 1.5.0-1 (re-tag sobre 9a1e90f) verde: 25/26 jobs, 27 assets (Windows x64/ARM64 exe+msi, macOS Intel+Apple Silicon, Linux deb/rpm/AppImage/flatpak). Clon temporal borrado.
+- **2026-10-12** — 1.5.0-1 instalado en el Mac de Basel: no arrancaba; causa = firma/permisos de build sin certificado. Resuelto con el procedimiento de §4. Detectados además fallos latentes desde 1.4.8-4: rutas con espacio sin comillas en los scripts del servicio macOS (`daemon.plist` con `/bin/sh -c`, `install/update/uninstall.scpt`) → el servicio root no arranca. Propuesto 1.5.0-2 con el arreglo. Pendiente: prueba de Abacus con la contable sobre 1.5.0-1.
