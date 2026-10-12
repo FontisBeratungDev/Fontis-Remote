@@ -189,6 +189,8 @@ mitigación en el fork (lado controlado, misma llamada AX tras cada clic que cam
 `V 2026.202 | Hosting by STARTNOW.SUPPORT AG | Release 15.02.2026 - Patch 15.09.2026`.
 El Mac de Basel es solo un cliente (proceso `AbaClientLauncher`) que se conecta al hosting por internet.
 
+**Actualización 2026-10-12:** con 1.5.0-1 (`focus_fix` activo) el fallo sigue en remoto **y ahora también le pasa a la persona sentada delante del Mac** (contradice la prueba presencial del 2026-10-11). Si falla sin entrada remota, la causa principal no es Fontis Remote y `focus_fix` no puede arreglarla. Prueba decisiva pendiente: cerrar Fontis Remote por completo y repetir el flujo en presencial. Si falla → incidencia de Abacus/Java para STARTNOW.SUPPORT (AbaClient con JRE 21). Si no falla → Fontis Remote interfiere en local; revisar `~/Library/Logs/Fontis Remote/` (líneas `focus_fix:`).
+
 **Opciones de fondo:**
 1. ~~AbaClient en el Mac de la contable~~ **DESCARTADA (2026-10-11): política de empresa, solo se trabaja desde los equipos remotos.** Conectado directamente al hosting de
    STARTNOW.SUPPORT con su mismo usuario. Sin escritorio remoto → sin bug de foco Java, y más rápido.
