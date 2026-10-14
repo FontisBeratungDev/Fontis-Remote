@@ -127,6 +127,37 @@ Buscar servidor y clave en `librustdesk.dll`. Ojo: el compilador parte cadenas c
 
 ---
 
+### 3.7 Firma y notarización macOS (Developer ID)
+
+El CI ya firma, notariza y grapa el dmg si existen 4 secrets en el repo (`flutter-tag.yml` usa `secrets: inherit`).
+Sin ellos los pasos se saltan y sale una build ad-hoc (ver §4, instalación macOS).
+
+1. **Apple Developer Program como organización** (99 USD/año). Requiere número D-U-N-S de Fontis Beratung, Apple ID con 2FA
+   y alguien con poder legal. La cuenta individual firmaría con nombre de persona: descartada.
+2. **Certificado "Developer ID Application"** (solo lo puede crear el Account Holder). La CSR se puede generar desde Windows,
+   fuera del repo:
+   `openssl req -new -newkey rsa:2048 -nodes -keyout devid.key -out devid.csr -subj "/CN=Fontis Beratung/C=CH"`.
+   Subirla en developer.apple.com → Certificates → + → Developer ID Application (G2). Descargar el `.cer` y el intermedio
+   Developer ID G2 de apple.com/certificateauthority, y empaquetar:
+   `openssl x509 -inform DER -in developerID_application.cer -out devid.pem`
+   `openssl pkcs12 -export -legacy -inkey devid.key -in devid.pem -certfile DeveloperIDG2CA.pem -out devid.p12`
+   (`-legacy` para que el llavero de macOS lo importe).
+3. **Clave de notarización**: App Store Connect → Users and Access → Integrations → App Store Connect API → clave de equipo
+   (rol Developer). Anotar Issuer ID y Key ID; el `.p8` solo se descarga una vez. Convertir con rcodesign (hay binario Windows):
+   `rcodesign encode-app-store-connect-api-key -o notary.json <ISSUER_ID> <KEY_ID> AuthKey_<KEY_ID>.p8`.
+4. **Secrets en GitHub** (repo → Settings → Secrets and variables → Actions):
+   `MACOS_P12_BASE64` (base64 del .p12 en una línea), `MACOS_P12_PASSWORD`,
+   `MACOS_CODESIGN_IDENTITY` = `"Developer ID Application: <Razón social> (<TEAMID>)"` **con las comillas dobles incluidas**
+   (el workflow lo expande sin comillas), `MACOS_NOTARIZE_JSON` (base64 de notary.json).
+5. **Tag nuevo** → el job macOS firma (`.github/scripts/sign-macos-app.sh`, hardened runtime + timestamp), notariza y grapa.
+   Verificar en un Mac: `spctl -a -vv -t install <dmg>` → `source=Notarized Developer ID`.
+6. Primera instalación firmada en cada Mac: conceder permisos una última vez; desde ahí se conservan entre versiones.
+
+**Nunca** subir `devid.key`, `.p12`, `.p8` ni `notary.json` al repo (es público): gestor de contraseñas y secrets de GitHub.
+Pendiente decidir junto a la primera build firmada: bundle id propio (hoy `com.carriez.rustdesk`, el de RustDesk).
+
+---
+
 ## 4. Guías de soporte (en `deploy/`)
 
 | Tema | Archivo | Resumen |
