@@ -177,7 +177,7 @@ Antes de "crear" una función, buscarla en el código.
 
 ## 5. Incidentes abiertos
 
-### 5.1 Abacus en Mac remoto pierde el teclado al cambiar de ventana (abierto 2026-10-11)
+### 5.1 Abacus en Mac pierde el teclado al cambiar de app (abierto 2026-10-11; causa externa a Fontis Remote desde 2026-10-19)
 
 **Reporte (contable):** en el PC de Basel (Mac), en Abacus (asientos y Kreditoren), al pasar a
 otro archivo y volver, el módulo queda bloqueado. Minimizar la ventana lo reactiva.
@@ -221,6 +221,15 @@ mitigación en el fork (lado controlado, misma llamada AX tras cada clic que cam
 El Mac de Basel es solo un cliente (proceso `AbaClientLauncher`) que se conecta al hosting por internet.
 
 **Actualización 2026-10-12:** con 1.5.0-1 (`focus_fix` activo) el fallo sigue en remoto **y ahora también le pasa a la persona sentada delante del Mac** (contradice la prueba presencial del 2026-10-11). Si falla sin entrada remota, la causa principal no es Fontis Remote y `focus_fix` no puede arreglarla. Prueba decisiva pendiente: cerrar Fontis Remote por completo y repetir el flujo en presencial. Si falla → incidencia de Abacus/Java para STARTNOW.SUPPORT (AbaClient con JRE 21). Si no falla → Fontis Remote interfiere en local; revisar `~/Library/Logs/Fontis Remote/` (líneas `focus_fix:`).
+
+**Prueba decisiva (2026-10-19), Mac con macOS 15.8.1 (24H32), Fontis Remote 1.5.0-1:**
+- Presencial con Fontis Remote cerrado del todo: **falla**.
+- Presencial con Fontis Remote abierto sin sesión: falla.
+- Remota: falla. El usuario precisa: ocurre al **teclear en otro programa** y volver; minimizar/restaurar lo arregla.
+- Log `focus_fix`: se dispara (`activated=true`, `raised` true o false según el clic); no cambia el resultado.
+
+**Conclusión:** el fallo es de Abacus/Java (AbaClient) en macOS, no de Fontis Remote. Siguiente: ticket a STARTNOW.SUPPORT con versiones y vídeos, y probar si influye el cambio de fuente de entrada (ES/DE) entre apps. `focus_fix` se mantiene (inofensivo); valorar quitarlo para acercarse a upstream.
+Ojo: el Terminal mostró hostname `device-165` (antes `macbookpro-1`) y no existe `/Applications/AbaClientManager.app`: confirmar si es el mismo Mac.
 
 **Opciones de fondo:**
 1. ~~AbaClient en el Mac de la contable~~ **DESCARTADA (2026-10-11): política de empresa, solo se trabaja desde los equipos remotos.** Conectado directamente al hosting de
