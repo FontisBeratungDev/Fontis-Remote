@@ -231,6 +231,8 @@ El Mac de Basel es solo un cliente (proceso `AbaClientLauncher`) que se conecta 
 **Conclusión:** el fallo es de Abacus/Java (AbaClient) en macOS, no de Fontis Remote. Siguiente: ticket a STARTNOW.SUPPORT con versiones y vídeos, y probar si influye el cambio de fuente de entrada (ES/DE) entre apps. `focus_fix` se mantiene (inofensivo); valorar quitarlo para acercarse a upstream.
 Ojo: el Terminal mostró hostname `device-165` (antes `macbookpro-1`) y no existe `/Applications/AbaClientManager.app`: confirmar si es el mismo Mac.
 
+**Datos 2026-10-19 (tarde):** Abacus corre desde `/Applications/AbaClient.app` (Java en `Contents/Plugins/Java.Runtime/Contents/Home/jre21/bin/java`) y pinta la interfaz con **JxBrowser 8.12.0** (Chromium 140) en modo `--off-screen`: el teclado pasa por Java antes de llegar a Chromium, zona típica de fallos de foco. Última JxBrowser 8.x: 8.18.3 (2026-04-10), sin fix de macOS documentado. Fuentes de entrada: Swiss German, Swiss French, Spanish-ISO, ABC, British-PC; "Cambiar automáticamente a la fuente de entrada de un documento" ya estaba **desactivado** → hipótesis del cambio de idioma descartada. Pendiente opcional: probar con "Mostrar texto predictivo integrado" desactivado. Decisión: escalar a STARTNOW.SUPPORT/Abacus (no hay arreglo posible desde Fontis Remote).
+
 **Opciones de fondo:**
 1. ~~AbaClient en el Mac de la contable~~ **DESCARTADA (2026-10-11): política de empresa, solo se trabaja desde los equipos remotos.** Conectado directamente al hosting de
    STARTNOW.SUPPORT con su mismo usuario. Sin escritorio remoto → sin bug de foco Java, y más rápido.
