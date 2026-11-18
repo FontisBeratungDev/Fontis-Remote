@@ -909,30 +909,89 @@ def patch_macos_java_focus(env: dict) -> None:
 
 
 def patch_server_lock(env: dict) -> None:
+    """OVERWRITE_SETTINGS: servidor bloqueado (opcional) y auto-update siempre apagado.
+
+    `allow-auto-update=N` se fuerza siempre: con la casilla "Auto update" marcada
+    (Windows instalado la muestra aunque sea cliente propio), el actualizador de
+    upstream descargaría RustDesk de stock, sin marca ni servidor.
+    """
     lock = env.get("LOCK_SERVER_SETTINGS", "false").lower() == "true"
     pattern = r'pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> =[^;]*;'
+    entries = []
     if lock:
-        entries = [
+        entries += [
             ("custom-rendezvous-server", env["RENDEZVOUS_SERVER"]),
             ("key", env["RS_PUB_KEY"]),
         ]
         if env.get("API_SERVER"):
             entries.append(("api-server", env["API_SERVER"]))
-        rust_entries = ", ".join(
-            f'("{rust_str(k)}".to_owned(), "{rust_str(v)}".to_owned())' for k, v in entries
-        )
-        replacement = (
-            "pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = "
-            f"RwLock::new(HashMap::from([{rust_entries}]));"
-        )
-        desc = "Servidor bloqueado en ajustes (OVERWRITE_SETTINGS)"
+        desc = "Servidor bloqueado y auto-update apagado (OVERWRITE_SETTINGS)"
     else:
-        replacement = (
-            "pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = "
-            "Default::default();"
-        )
-        desc = "Servidor editable en ajustes (OVERWRITE_SETTINGS por defecto)"
+        desc = "Servidor editable, auto-update apagado (OVERWRITE_SETTINGS)"
+    entries.append(("allow-auto-update", "N"))
+    rust_entries = ", ".join(
+        f'("{rust_str(k)}".to_owned(), "{rust_str(v)}".to_owned())' for k, v in entries
+    )
+    replacement = (
+        "pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = "
+        f"RwLock::new(HashMap::from([{rust_entries}]));"
+    )
     patch(CONFIG_RS, pattern, replacement, desc)
+
+
+MACOS_PRIV_DIR = SRC / "src" / "platform" / "privileges_scripts"
+
+# correct_app_name() (macos.rs) cambia "RustDesk" por el nombre de la app antes de
+# ejecutar estos scripts; con un espacio ("Fontis Remote") las rutas y etiquetas
+# sin comillas se partían y el servicio root nunca se instalaba ni se quitaba.
+MACOS_INSTALL_QUOTING = [
+    ('  set prefs2_toml to quoted form of (prefs_dir & "RustDesk2.toml")\n',
+     '  set prefs2_toml to quoted form of (prefs_dir & "RustDesk2.toml")\n'
+     '  set daemon_plist_q to quoted form of "/Library/LaunchDaemons/com.carriez.RustDesk_service.plist"\n'
+     '  set agent_plist_q to quoted form of "/Library/LaunchAgents/com.carriez.RustDesk_server.plist"\n'
+     '  set root_prefs_q to quoted form of "/var/root/Library/Preferences/com.carriez.RustDesk/"\n'
+     '  set daemon_target_q to quoted form of "system/com.carriez.RustDesk_service"\n'),
+    ('" > /Library/LaunchDaemons/com.carriez.RustDesk_service.plist && chown root:wheel '
+     '/Library/LaunchDaemons/com.carriez.RustDesk_service.plist;"',
+     '" > " & daemon_plist_q & " && chown root:wheel " & daemon_plist_q & ";"'),
+    ('" > /Library/LaunchAgents/com.carriez.RustDesk_server.plist && chown root:wheel '
+     '/Library/LaunchAgents/com.carriez.RustDesk_server.plist;"',
+     '" > " & agent_plist_q & " && chown root:wheel " & agent_plist_q & ";"'),
+    ('"cp -rf " & prefs_toml & " /var/root/Library/Preferences/com.carriez.RustDesk/;"',
+     '"cp -rf " & prefs_toml & " " & root_prefs_q & ";"'),
+    ('"cp -rf " & prefs2_toml & " /var/root/Library/Preferences/com.carriez.RustDesk/;"',
+     '"cp -rf " & prefs2_toml & " " & root_prefs_q & ";"'),
+    ('"launchctl bootout system/com.carriez.RustDesk_service 2>/dev/null || launchctl unload -w '
+     '/Library/LaunchDaemons/com.carriez.RustDesk_service.plist 2>/dev/null || true; launchctl '
+     'bootstrap system /Library/LaunchDaemons/com.carriez.RustDesk_service.plist 2>/dev/null || '
+     'launchctl load -w /Library/LaunchDaemons/com.carriez.RustDesk_service.plist;"',
+     '"launchctl bootout " & daemon_target_q & " 2>/dev/null || launchctl unload -w " & '
+     'daemon_plist_q & " 2>/dev/null || true; launchctl bootstrap system " & daemon_plist_q & '
+     '" 2>/dev/null || launchctl load -w " & daemon_plist_q & ";"'),
+]
+MACOS_UNINSTALL_QUOTING = [
+    ('set sh1 to "launchctl unload -w /Library/LaunchDaemons/com.carriez.RustDesk_service.plist;"\n',
+     'set daemon_plist_q to quoted form of "/Library/LaunchDaemons/com.carriez.RustDesk_service.plist"\n'
+     'set agent_plist_q to quoted form of "/Library/LaunchAgents/com.carriez.RustDesk_server.plist"\n'
+     'set sh1 to "launchctl unload -w " & daemon_plist_q & ";"\n'),
+    ('set sh2 to "/bin/rm /Library/LaunchDaemons/com.carriez.RustDesk_service.plist;"',
+     'set sh2 to "/bin/rm " & daemon_plist_q & ";"'),
+    ('set sh3 to "/bin/rm /Library/LaunchAgents/com.carriez.RustDesk_server.plist;"',
+     'set sh3 to "/bin/rm " & agent_plist_q & ";"'),
+]
+
+
+def patch_macos_service_quoting(env: dict) -> None:
+    """Comillas en las rutas del servicio macOS (install/uninstall.scpt)."""
+    for name, edits in (("install.scpt", MACOS_INSTALL_QUOTING),
+                        ("uninstall.scpt", MACOS_UNINSTALL_QUOTING)):
+        path = MACOS_PRIV_DIR / name
+        for i, (old, new) in enumerate(edits, 1):
+            if new in path.read_text(encoding="utf-8"):
+                applied.append(f"macOS {name}: comillas {i}/{len(edits)}  (ya aplicado)")
+                continue
+            patch(path, re.escape(old), new.replace("\\", "\\\\"),
+                  f"macOS {name}: comillas {i}/{len(edits)}")
 
 
 # ----------------------------------------------------------------------------
@@ -1082,6 +1141,7 @@ def main() -> None:
     patch_ci_sciter_toolchain(env)
     patch_macos_bundle(env)
     patch_macos_java_focus(env)
+    patch_macos_service_quoting(env)
     patch_server_lock(env)
     if not args.skip_icons:
         patch_icons(env)

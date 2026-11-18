@@ -1,6 +1,6 @@
 # Fontis Remote
 
-Fork de [RustDesk](https://github.com/rustdesk/rustdesk) **1.4.9** con la marca
+Fork de [RustDesk](https://github.com/rustdesk/rustdesk) **1.5.3** con la marca
 Fontis y el servidor propio embebido. Este repositorio es autocontenido: incluye
 la configuración de branding y el script que la aplica.
 
